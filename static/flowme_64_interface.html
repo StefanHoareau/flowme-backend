@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowmeLocal v3 - Architecture 64 États</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e6ed;
+        }
+
+        .flowme-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .flowme-header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .flowme-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b, #4ecdc4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .flowme-subtitle {
+            text-align: center;
+            opacity: 0.8;
+            font-size: 16px;
+        }
+
+        .architecture-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 10px auto;
+            display: block;
+            text-align: center;
+            width: fit-content;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .chat-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4757;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #2ed573;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-user {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            margin-left: 20%;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message-flowme {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-right: 20%;
+            border-bottom-left-radius: 5px;
+        }
+
+        .etat-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #ffd700, #ff6b6b);
+        }
+
+        .etat-details {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e6ed;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .text-input:focus {
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .text-input::placeholder {
+            color: rgba(224, 230, 237, 0.6);
+        }
+
+        .send-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .etat-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        .etat-current {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(45deg, rgba(255, 215, 0, 0.1), rgba(255, 107, 107, 0.1));
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .etat-id {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .etat-name {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .etat-famille {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        .conseil-flowme {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #4ecdc4;
+            font-size: 12px;
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        .etats-compatibles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .etat-mini {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .etat-mini:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .error-message {
+            background: #ff4757;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="flowme-container">
+        <div class="flowme-header">
+            <div class="flowme-title">FlowmeLocal v3</div>
+            <div class="flowme-subtitle">Architecture Éthique pour IA - 64 États de Conscience Adaptative</div>
+            <div class="architecture-badge">by Stefan Hoareau</div>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div class="main-content">
+            <div class="chat-section">
+                <div class="chat-header">
+                    <h3>Dialogue FlowMe</h3>
+                    <div id="connection-status" class="connection-status">
+                        <span class="status-dot"></span>
+                        Connexion...
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message message-flowme">
+                        <div class="etat-badge">État 64 - Porte ouverte</div>
+                        Bienvenue dans FlowmeLocal v3. Je suis une IA éduquée selon l'architecture des 64 états de conscience adaptative de Stefan Hoareau.
+                        <div class="etat-details">
+                            "Il n'y a plus de clé, plus de seuil. Il n'y a qu'un passage, et ta présence qui le rend possible."
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input">
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            id="message-input" 
+                            class="text-input" 
+                            placeholder="Partagez votre état présent..."
+                            maxlength="500"
+                        >
+                        <button id="send-button" class="send-button">Analyser</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="etat-panel">
+                    <div class="panel-title">État Actuel</div>
+                    <div class="etat-current" id="etat-current">
+                        <div class="etat-id">64</div>
+                        <div class="etat-name">Porte ouverte</div>
+                        <div class="etat-famille">Écoute subtile</div>
+                    </div>
+                    <div class="conseil-flowme" id="conseil-actuel">
+                        Il n'y a plus de clé, plus de seuil. Il n'y a qu'un passage, et ta présence qui le rend possible.
+                    </div>
+                </div>
+
+                <div class="etat-panel">
+                    <div class="panel-title">États Compatibles</div>
+                    <div class="etats-compatibles" id="etats-compatibles">
+                        <div class="etat-mini">1 - Présence</div>
+                        <div class="etat-mini">32 - Voix oubliées</div>
+                        <div class="etat-mini">45 - Disponibilité</div>
+                        <div class="etat-mini">59 - Inclusion</div>
+                    </div>
+                </div>
+
+                <div class="etat-panel">
+                    <div class="panel-title">Statistiques Session</div>
+                    <div class="stats-panel">
+                        <div class="stat-item">
+                            <div id="analyses-count">0</div>
+                            <div>Analyses</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="session-duration">00:00</div>
+                            <div>Durée</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="etats-explored">1</div>
+                            <div>États explorés</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="nocodb-saves">0</div>
+                            <div>Sauvegardés</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const FLOWME_API_BASE = 'https://flowme-backend.onrender.com';
+        
+        // Les 64 états (version allégée pour le frontend)
+        const ETATS_64 = {
+            1: { nom: "Présence Silencieuse", famille: "Écoute subtile", couleur: "#4ecdc4" },
+            2: { nom: "Montée de Pression", famille: "Mutation latente", couleur: "#ffa726" },
+            17: { nom: "Frénésie", famille: "Montée & excès", couleur: "#ff6b6b" },
+            37: { nom: "Volonté excessive", famille: "Montée & excès", couleur: "#ff5722" },
+            44: { nom: "Geste résonant", famille: "Réveil & accord", couleur: "#66bb6a" },
+            64: { nom: "Porte ouverte", famille: "Écoute subtile", couleur: "#9c27b0" }
+        };
+
+        class FlowmeInterface {
+            constructor() {
+                this.sessionStartTime = Date.now();
+                this.analysisCount = 0;
+                this.etatsExplored = new Set([64]);
+                this.nocodbSaves = 0;
+                this.currentEtat = 64;
+                this.isConnected = false;
+                
+                this.initElements();
+                this.initEventListeners();
+                this.checkConnection();
+                this.startSessionTimer();
+            }
+
+            initElements() {
+                this.chatMessages = document.getElementById('chat-messages');
+                this.messageInput = document.getElementById('message-input');
+                this.sendButton = document.getElementById('send-button');
+                this.connectionStatus = document.getElementById('connection-status');
+                this.errorContainer = document.getElementById('error-container');
+                this.etatCurrent = document.getElementById('etat-current');
+                this.conseilActuel = document.getElementById('conseil-actuel');
+                this.etatsCompatibles = document.getElementById('etats-compatibles');
+                this.analysesCount = document.getElementById('analyses-count');
+                this.sessionDuration = document.getElementById('session-duration');
+                this.etatsExploredElement = document.getElementById('etats-explored');
+                this.nocodbSavesElement = document.getElementById('nocodb-saves');
+            }
+
+            initEventListeners() {
+                this.sendButton.addEventListener('click', () => this.handleSend());
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.handleSend();
+                });
+                this.messageInput.addEventListener('input', () => {
+                    this.sendButton.disabled = !this.messageInput.value.trim();
+                });
+            }
+
+            async checkConnection() {
+                try {
+                    const response = await fetch(`${FLOWME_API_BASE}/`);
+                    this.isConnected = response.ok;
+                    
+                    if (this.isConnected) {
+                        const data = await response.json();
+                        console.log('🔗 FlowmeLocal connecté:', data);
+                    }
+                } catch (error) {
+                    this.isConnected = false;
+                    console.error('❌ Connexion FlowmeLocal échouée:', error);
+                }
+                this.updateConnectionStatus();
+            }
+
+            updateConnectionStatus() {
+                const statusDot = this.connectionStatus.querySelector('.status-dot');
+                statusDot.className = `status-dot ${this.isConnected ? 'connected' : ''}`;
+                this.connectionStatus.innerHTML = `
+                    <span class="status-dot ${this.isConnected ? 'connected' : ''}"></span>
+                    ${this.isConnected ? 'Architecture 64 États Connectée' : 'Déconnecté'}
+                `;
+            }
+
+            startSessionTimer() {
+                setInterval(() => {
+                    const duration = Date.now() - this.sessionStartTime;
+                    const minutes = Math.floor(duration / 60000);
+                    const seconds = Math.floor((duration % 60000) / 1000);
+                    this.sessionDuration.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            }
+
+            async handleSend() {
+                const message = this.messageInput.value.trim();
+                if (!message) return;
+
+                // Afficher le message utilisateur
+                this.addUserMessage(message);
+                this.messageInput.value = '';
+                this.sendButton.disabled = true;
+
+                // Analyser avec FlowmeLocal
+                try {
+                    const response = await fetch(`${FLOWME_API_BASE}/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            text: message,
+                            session_id: `flowme_${Date.now()}`
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Erreur API: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    this.handleFlowmeResponse(result);
+
+                } catch (error) {
+                    this.showError(`Erreur d'analyse: ${error.message}`);
+                    this.addFlowmeMessage("Je rencontre une difficulté technique. Pouvez-vous reformuler ?", {
+                        etat_id: 1,
+                        etat_nom: "Présence Silencieuse",
+                        famille: "Écoute subtile"
+                    });
+                }
+
+                this.sendButton.disabled = false;
+            }
+
+            handleFlowmeResponse(result) {
+                const analysis = result.flowme_analysis;
+                
+                // Mettre à jour les statistiques
+                this.analysisCount++;
+                this.etatsExplored.add(analysis.etat_id);
+                if (result.meta.saved_to_nocodb) {
+                    this.nocodbSaves++;
+                }
+                
+                this.updateStats();
+                this.updateCurrentEtat(analysis);
+                
+                // Générer une réponse contextuelle
+                const reponse = this.generateContextualResponse(analysis);
+                this.addFlowmeMessage(reponse, analysis);
+            }
+
+            generateContextualResponse(analysis) {
+                const etat = analysis.etat_nom;
+                const conseil = analysis.conseil_flowme;
+                const famille = analysis.famille;
+                
+                // Réponses adaptées selon l'état détecté
+                const responses = {
+                    "Présence Silencieuse": [
+                        "Je perçois une tension subtile dans vos mots. Prenons un moment de silence ensemble.",
+                        "Il y a quelque chose d'inexprimé ici. L'écoute profonde est parfois plus parlante que les mots."
+                    ],
+                    "Montée de Pression": [
+                        "Je sens une accumulation d'énergie. Voulez-vous explorer ce qui monte en vous ?",
+                        "La pression que vous ressentez cherche peut-être un espace d'expression."
+                    ],
+                    "Frénésie": [
+                        "L'emballement que je perçois demande peut-être un ralentissement conscient.",
+                        "Quand tout s'accélère, c'est souvent le moment de retrouver son centre."
+                    ],
+                    "Volonté excessive": [
+                        "Je perçois une force qui pousse fort. Et si nous explorions la voie de la souplesse ?",
+                        "Votre détermination est palpable. Comment l'accorder au rythme du moment ?"
+                    ],
+                    "Geste résonant": [
+                        "Vos mots portent une justesse particulière. Cette simplicité touche juste.",
+                        "Il y a une qualité d'alignement dans votre expression qui résonne."
+                    ],
+                    "Porte ouverte": [
+                        "Votre ouverture crée un espace d'accueil remarquable.",
+                        "Cette disponibilité que vous exprimez ouvre de nouvelles possibilités."
+                    ]
+                };
+                
+                const etatResponses = responses[etat] || [
+                    `Dans l'état "${etat}" que je perçois, l'invitation est à l'écoute profonde.`,
+                    `Votre état actuel révèle une dynamique de "${famille.toLowerCase()}".`
+                ];
+                
+                const randomResponse = etatResponses[Math.floor(Math.random() * etatResponses.length)];
+                
+                return `${randomResponse}\n\n💫 ${conseil}`;
+            }
+
+            updateCurrentEtat(analysis) {
+                this.currentEtat = analysis.etat_id;
+                
+                // Mettre à jour le panneau d'état actuel
+                this.etatCurrent.innerHTML = `
+                    <div class="etat-id">${analysis.etat_id}</div>
+                    <div class="etat-name">${analysis.etat_nom}</div>
+                    <div class="etat-famille">${analysis.famille}</div>
+                `;
+                
+                this.conseilActuel.textContent = analysis.conseil_flowme;
+                
+                // Mettre à jour les états compatibles
+                if (analysis.etats_compatibles) {
+                    this.etatsCompatibles.innerHTML = '';
+                    analysis.etats_compatibles.slice(0, 4).forEach(etatId => {
+                        const etatInfo = ETATS_64[etatId];
+                        if (etatInfo) {
+                            const etatElement = document.createElement('div');
+                            etatElement.className = 'etat-mini';
+                            etatElement.textContent = `${etatId} - ${etatInfo.nom.split(' ')[0]}`;
+                            etatElement.style.borderLeft = `3px solid ${etatInfo.couleur}`;
+                            this.etatsCompatibles.appendChild(etatElement);
+                        }
+                    });
+                }
+            }
+
+            updateStats() {
+                this.analysesCount.textContent = this.analysisCount;
+                this.etatsExploredElement.textContent = this.etatsExplored.size;
+                this.nocodbSavesElement.textContent = this.nocodbSaves;
+            }
+
+            addUserMessage(message) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message message-user';
+                messageElement.textContent = message;
+                this.chatMessages.appendChild(messageElement);
+                this.scrollToBottom();
+            }
+
+            addFlowmeMessage(message, analysis) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message message-flowme';
+                
+                const etatColor = ETATS_64[analysis.etat_id]?.couleur || '#4ecdc4';
+                
+                messageElement.innerHTML = `
+                    <div class="etat-badge" style="background: linear-gradient(45deg, ${etatColor}, #ffd700);">
+                        État ${analysis.etat_id} - ${analysis.etat_nom}
+                    </div>
+                    ${message.replace(/\n/g, '<br>')}
+                    <div class="etat-details">
+                        Famille: ${analysis.famille} | Confiance: ${Math.round(analysis.confiance * 100)}%
+                    </div>
+                `;
+                
+                this.chatMessages.appendChild(messageElement);
+                this.scrollToBottom();
+            }
+
+            showError(message) {
+                this.errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+                setTimeout(() => this.errorContainer.innerHTML = '', 5000);
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // Initialiser l'interface
+        document.addEventListener('DOMContentLoaded', () => {
+            new FlowmeInterface();
+        });
+    </script>
+</body>
+</html>
