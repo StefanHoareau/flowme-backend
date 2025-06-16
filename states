@@ -1,0 +1,479 @@
+# states/state_analyzer.py
+"""
+Analyseur intelligent des 64 états FlowMe
+Utilise l'IA pour détecter l'état optimal selon le contexte
+"""
+
+from typing import Dict, List, Any, Optional, Tuple
+import re
+from datetime import datetime
+import logging
+
+class StateAnalyzer:
+    """
+    Analyseur avancé pour la détection des états FlowMe
+    """
+    
+    def __init__(self):
+        self.emotional_patterns = self._load_emotional_patterns()
+        self.contextual_triggers = self._load_contextual_triggers()
+        self.state_compatibility_matrix = self._load_compatibility_matrix()
+        
+    def analyze_and_recommend(self, message: str, context: Dict, history: List[int]) -> int:
+        """
+        Analyse complète et recommandation d'état optimal
+        
+        Args:
+            message: Message utilisateur
+            context: Contexte enrichi
+            history: Historique des états
+            
+        Returns:
+            ID de l'état FlowMe recommandé
+        """
+        
+        # 1. Analyse émotionnelle
+        emotional_analysis = self._analyze_emotions(message)
+        
+        # 2. Analyse contextuelle
+        contextual_analysis = self._analyze_context(message, context)
+        
+        # 3. Analyse de l'historique
+        historical_analysis = self._analyze_history(history)
+        
+        # 4. Détection des patterns linguistiques
+        linguistic_analysis = self._analyze_linguistics(message)
+        
+        # 5. Scoring des états candidats
+        state_scores = self._score_all_states(
+            emotional_analysis,
+            contextual_analysis,
+            historical_analysis,
+            linguistic_analysis
+        )
+        
+        # 6. Sélection de l'état optimal
+        optimal_state = self._select_optimal_state(state_scores, context)
+        
+        logging.info("État recommandé: %d (score: %.2f)", 
+                    optimal_state, state_scores.get(optimal_state, 0))
+        
+        return optimal_state
+    
+    def _analyze_emotions(self, message: str) -> Dict[str, Any]:
+        """Analyse les émotions dans le message"""
+        
+        message_lower = message.lower()
+        detected_emotions = {}
+        
+        for emotion_family, patterns in self.emotional_patterns.items():
+            intensity = 0
+            matched_words = []
+            
+            for pattern in patterns["keywords"]:
+                if pattern in message_lower:
+                    matched_words.append(pattern)
+                    intensity += patterns.get("base_intensity", 0.5)
+            
+            # Modificateurs d'intensité
+            for intensifier in patterns.get("intensifiers", []):
+                if intensifier in message_lower:
+                    intensity *= 1.3
+            
+            if matched_words:
+                detected_emotions[emotion_family] = {
+                    "intensity": min(intensity, 1.0),
+                    "matched_words": matched_words,
+                    "suggested_states": patterns.get("target_states", [1])
+                }
+        
+        return {
+            "detected": detected_emotions,
+            "dominant_emotion": max(detected_emotions.keys(), 
+                                  key=lambda x: detected_emotions[x]["intensity"]) 
+                                if detected_emotions else None,
+            "emotional_complexity": len(detected_emotions)
+        }
+    
+    def _analyze_context(self, message: str, context: Dict) -> Dict[str, Any]:
+        """Analyse le contexte situationnel"""
+        
+        analysis = {
+            "interaction_type": self._classify_interaction_type(message),
+            "urgency_level": self._assess_urgency(message, context),
+            "support_need": self._assess_support_need(message),
+            "exploration_depth": self._assess_exploration_need(message),
+            "relational_tone": self._assess_relational_tone(message)
+        }
+        
+        # Déduction des états appropriés selon le contexte
+        contextual_states = []
+        
+        if analysis["interaction_type"] == "question":
+            contextual_states.extend([1, 64])  # Présence, Ouverture
+        elif analysis["interaction_type"] == "sharing":
+            contextual_states.extend([8, 45])  # Résonance, Vulnérabilité
+        elif analysis["interaction_type"] == "problem":
+            contextual_states.extend([45, 58])  # Vulnérabilité, Inclusion
+        elif analysis["interaction_type"] == "gratitude":
+            contextual_states.extend([8, 58])  # Résonance, Inclusion
+        
+        analysis["suggested_states"] = contextual_states
+        return analysis
+    
+    def _analyze_history(self, history: List[int]) -> Dict[str, Any]:
+        """Analyse l'historique des états pour détecter les patterns"""
+        
+        if not history:
+            return {
+                "pattern": "initial",
+                "trend": "stable",
+                "preferred_states": [1],
+                "avoid_states": []
+            }
+        
+        # Analyse des fréquences
+        state_frequency = {}
+        for state in history:
+            state_frequency[state] = state_frequency.get(state, 0) + 1
+        
+        # États préférés (les plus fréquents)
+        preferred_states = sorted(state_frequency.keys(), 
+                                key=lambda x: state_frequency[x], reverse=True)[:3]
+        
+        # Détection de patterns de transition
+        transition_pattern = self._detect_transition_pattern(history)
+        
+        # Analyse de la tendance
+        trend = self._analyze_trend(history)
+        
+        return {
+            "pattern": transition_pattern,
+            "trend": trend,
+            "preferred_states": preferred_states,
+            "recent_states": history[-3:] if len(history) >= 3 else history,
+            "state_diversity": len(set(history)),
+            "session_length": len(history)
+        }
+    
+    def _analyze_linguistics(self, message: str) -> Dict[str, Any]:
+        """Analyse linguistique approfondie"""
+        
+        # Analyse de la complexité
+        words = message.split()
+        sentences = [s.strip() for s in message.split('.') if s.strip()]
+        
+        complexity_score = len(words) / max(len(sentences), 1)
+        
+        # Analyse des modalités
+        modalities = {
+            "interrogative": message.count('?'),
+            "exclamative": message.count('!'),
+            "declarative": len(sentences) - message.count('?') - message.count('!')
+        }
+        
+        # Analyse du registre
+        formal_indicators = ['vous', 'votre', 'pourriez', 'souhaiteriez']
+        informal_indicators = ['tu', 'ton', 'peux', 'veux']
+        
+        formality = sum(1 for indicator in formal_indicators if indicator in message.lower())
+        informality = sum(1 for indicator in informal_indicators if indicator in message.lower())
+        
+        # Analyse temporelle
+        temporal_indicators = {
+            "past": ['était', 'avait', 'faisait', 'hier'],
+            "present": ['est', 'ai', 'suis', 'maintenant', 'aujourd\'hui'],
+            "future": ['sera', 'aura', 'fera', 'demain', 'bientôt']
+        }
+        
+        temporal_focus = {}
+        for time, indicators in temporal_indicators.items():
+            temporal_focus[time] = sum(1 for ind in indicators if ind in message.lower())
+        
+        dominant_time = max(temporal_focus.keys(), key=lambda x: temporal_focus[x]) \
+                       if any(temporal_focus.values()) else "present"
+        
+        return {
+            "complexity": complexity_score,
+            "modalities": modalities,
+            "formality_level": formality - informality,
+            "temporal_focus": dominant_time,
+            "word_count": len(words),
+            "sentence_count": len(sentences),
+            "avg_sentence_length": complexity_score
+        }
+    
+    def _score_all_states(self, emotional: Dict, contextual: Dict, 
+                         historical: Dict, linguistic: Dict) -> Dict[int, float]:
+        """Score tous les états selon les analyses"""
+        
+        state_scores = {}
+        
+        # Score de base pour tous les états
+        for state_id in range(1, 65):
+            base_score = 0.1
+            
+            # Bonus émotionnel
+            if emotional["detected"]:
+                for emotion_data in emotional["detected"].values():
+                    if state_id in emotion_data["suggested_states"]:
+                        base_score += emotion_data["intensity"] * 0.3
+            
+            # Bonus contextuel
+            if state_id in contextual.get("suggested_states", []):
+                base_score += 0.25
+            
+            # Bonus historique (préférences utilisateur)
+            if state_id in historical.get("preferred_states", []):
+                base_score += 0.15
+            
+            # Bonus de compatibilité avec l'état précédent
+            recent_states = historical.get("recent_states", [])
+            if recent_states:
+                last_state = recent_states[-1]
+                compatibility = self._get_state_compatibility(last_state, state_id)
+                base_score += compatibility * 0.2
+            
+            # Ajustement selon la complexité linguistique
+            if linguistic["complexity"] > 0.7 and self._is_complex_state(state_id):
+                base_score += 0.1
+            elif linguistic["complexity"] < 0.3 and self._is_simple_state(state_id):
+                base_score += 0.1
+            
+            state_scores[state_id] = min(base_score, 1.0)
+        
+        return state_scores
+    
+    def _select_optimal_state(self, scores: Dict[int, float], context: Dict) -> int:
+        """Sélectionne l'état optimal selon les scores et contraintes"""
+        
+        # Filtrer les états avec score trop faible
+        viable_states = {k: v for k, v in scores.items() if v > 0.2}
+        
+        if not viable_states:
+            return 1  # Fallback vers Présence
+        
+        # Sélection du meilleur score
+        optimal_state = max(viable_states.keys(), key=lambda x: viable_states[x])
+        
+        # Validation finale
+        if self._validate_state_choice(optimal_state, context):
+            return optimal_state
+        else:
+            # Fallback vers le deuxième meilleur ou Présence
+            sorted_states = sorted(viable_states.keys(), 
+                                 key=lambda x: viable_states[x], reverse=True)
+            return sorted_states[1] if len(sorted_states) > 1 else 1
+    
+    def _load_emotional_patterns(self) -> Dict[str, Dict]:
+        """Charge les patterns émotionnels"""
+        
+        return {
+            "joie": {
+                "keywords": ["heureux", "content", "joyeux", "ravi", "super", "génial"],
+                "intensifiers": ["très", "vraiment", "tellement"],
+                "base_intensity": 0.7,
+                "target_states": [64, 8, 58]  # Ouverture, Résonance, Inclusion
+            },
+            "tristesse": {
+                "keywords": ["triste", "malheureux", "déprimé", "abattu", "mal"],
+                "intensifiers": ["très", "profondément", "vraiment"],
+                "base_intensity": 0.6,
+                "target_states": [45, 8, 1]  # Vulnérabilité, Résonance, Présence
+            },
+            "inquietude": {
+                "keywords": ["inquiet", "anxieux", "stressé", "préoccupé", "angoissé"],
+                "intensifiers": ["très", "vraiment", "super"],
+                "base_intensity": 0.8,
+                "target_states": [1, 45, 8]  # Présence, Vulnérabilité, Résonance
+            },
+            "curiosite": {
+                "keywords": ["curieux", "intéressé", "pourquoi", "comment", "qu'est-ce"],
+                "intensifiers": ["très", "vraiment", "particulièrement"],
+                "base_intensity": 0.6,
+                "target_states": [64, 1, 32]  # Ouverture, Présence, Expression
+            },
+            "gratitude": {
+                "keywords": ["merci", "remercie", "reconnaissant", "gratitude"],
+                "intensifiers": ["beaucoup", "vraiment", "infiniment"],
+                "base_intensity": 0.8,
+                "target_states": [8, 58, 1]  # Résonance, Inclusion, Présence
+            },
+            "confusion": {
+                "keywords": ["confus", "perdu", "comprends pas", "flou", "mélangé"],
+                "intensifiers": ["complètement", "totalement", "vraiment"],
+                "base_intensity": 0.7,
+                "target_states": [1, 64, 45]  # Présence, Ouverture, Vulnérabilité
+            }
+        }
+    
+    def _load_contextual_triggers(self) -> Dict[str, List[int]]:
+        """Charge les déclencheurs contextuels"""
+        
+        return {
+            "greeting": [1, 8],     # Présence, Résonance
+            "farewell": [8, 58],    # Résonance, Inclusion
+            "question": [1, 64],    # Présence, Ouverture
+            "problem": [45, 58],    # Vulnérabilité, Inclusion
+            "sharing": [8, 45],     # Résonance, Vulnérabilité
+            "request": [45, 1],     # Vulnérabilité, Présence
+            "affirmation": [58, 32], # Inclusion, Expression
+            "doubt": [1, 45]        # Présence, Vulnérabilité
+        }
+    
+    def _load_compatibility_matrix(self) -> Dict[int, List[int]]:
+        """Charge la matrice de compatibilité entre états"""
+        
+        return {
+            1: [8, 32, 45, 64],   # Présence compatible avec ouverture
+            8: [1, 58, 32, 45],   # Résonance compatible avec connection
+            32: [1, 45, 58, 64],  # Expression compatible avec partage
+            45: [1, 8, 64, 32],   # Vulnérabilité compatible avec soutien
+            58: [8, 32, 64, 1],   # Inclusion compatible avec rassemblement
+            64: [1, 45, 32, 8]    # Ouverture compatible avec exploration
+        }
+    
+    def _classify_interaction_type(self, message: str) -> str:
+        """Classifie le type d'interaction"""
+        
+        if any(word in message.lower() for word in ["bonjour", "salut", "hello"]):
+            return "greeting"
+        elif any(word in message.lower() for word in ["au revoir", "bye", "à bientôt"]):
+            return "farewell"
+        elif "?" in message:
+            return "question"
+        elif any(word in message.lower() for word in ["problème", "difficulté", "aide"]):
+            return "problem"
+        elif any(word in message.lower() for word in ["merci", "remercie"]):
+            return "gratitude"
+        elif any(word in message.lower() for word in ["je pense", "il me semble", "j'ai l'impression"]):
+            return "sharing"
+        else:
+            return "statement"
+    
+    def _assess_urgency(self, message: str, context: Dict) -> float:
+        """Évalue le niveau d'urgence"""
+        
+        urgent_indicators = ["urgent", "vite", "rapidement", "immédiatement", "maintenant"]
+        urgency_score = sum(1 for indicator in urgent_indicators 
+                          if indicator in message.lower())
+        
+        # Ajustement selon la ponctuation
+        if message.count("!") > 1:
+            urgency_score += 0.5
+        
+        return min(urgency_score / 3, 1.0)
+    
+    def _assess_support_need(self, message: str) -> float:
+        """Évalue le besoin de soutien"""
+        
+        support_indicators = ["aide", "soutien", "accompagnement", "difficile", "dur"]
+        return min(sum(1 for ind in support_indicators if ind in message.lower()) / 3, 1.0)
+    
+    def _assess_exploration_need(self, message: str) -> float:
+        """Évalue le besoin d'exploration"""
+        
+        exploration_indicators = ["pourquoi", "comment", "comprendre", "expliquer", "explorer"]
+        return min(sum(1 for ind in exploration_indicators if ind in message.lower()) / 3, 1.0)
+    
+    def _assess_relational_tone(self, message: str) -> str:
+        """Évalue le ton relationnel"""
+        
+        if any(word in message.lower() for word in ["vous", "votre", "monsieur", "madame"]):
+            return "formal"
+        elif any(word in message.lower() for word in ["tu", "ton", "salut"]):
+            return "informal"
+        else:
+            return "neutral"
+    
+    def _detect_transition_pattern(self, history: List[int]) -> str:
+        """Détecte les patterns de transition dans l'historique"""
+        
+        if len(history) < 3:
+            return "insufficient_data"
+        
+        # Analyser les 5 derniers états
+        recent = history[-5:]
+        
+        # Pattern stable : même état répété
+        if len(set(recent)) == 1:
+            return "stable"
+        
+        # Pattern oscillant : alternance entre 2 états
+        if len(set(recent)) == 2 and len(recent) >= 4:
+            return "oscillating"
+        
+        # Pattern exploratoire : beaucoup d'états différents
+        if len(set(recent)) >= 4:
+            return "exploratory"
+        
+        # Pattern progressif : transition graduelle
+        return "progressive"
+    
+    def _analyze_trend(self, history: List[int]) -> str:
+        """Analyse la tendance générale des états"""
+        
+        if len(history) < 2:
+            return "initial"
+        
+        # Analyser les familles d'états
+        from .state_definitions import FLOWME_STATES
+        
+        recent_families = []
+        for state_id in history[-3:]:
+            if state_id in FLOWME_STATES:
+                family = FLOWME_STATES[state_id].get("famille_symbolique", "Inconnu")
+                recent_families.append(family)
+        
+        unique_families = set(recent_families)
+        
+        if len(unique_families) == 1:
+            return "focused"
+        elif len(unique_families) >= 3:
+            return "diverse"
+        else:
+            return "evolving"
+    
+    def _get_state_compatibility(self, state1: int, state2: int) -> float:
+        """Calcule la compatibilité entre deux états"""
+        
+        if state1 == state2:
+            return 1.0
+        
+        compatible_states = self.state_compatibility_matrix.get(state1, [])
+        
+        if state2 in compatible_states:
+            return 0.8
+        else:
+            return 0.3  # Transition possible mais moins naturelle
+    
+    def _is_complex_state(self, state_id: int) -> bool:
+        """Détermine si un état est adapté aux situations complexes"""
+        # États plus sophistiqués pour les situations complexes
+        complex_states = [32, 45, 58, 64]  # Expression, Vulnérabilité, Inclusion, Ouverture
+        return state_id in complex_states
+    
+    def _is_simple_state(self, state_id: int) -> bool:
+        """Détermine si un état est adapté aux situations simples"""
+        # États plus directs pour les situations simples
+        simple_states = [1, 8]  # Présence, Résonance
+        return state_id in simple_states
+    
+    def _validate_state_choice(self, state_id: int, context: Dict) -> bool:
+        """Valide le choix d'état selon le contexte"""
+        
+        # Vérifications de cohérence
+        if state_id < 1 or state_id > 64:
+            return False
+        
+        # Éviter les états inappropriés selon le contexte
+        urgency = context.get("urgency_level", 0)
+        if urgency > 0.7 and self._is_contemplative_state(state_id):
+            return False
+        
+        return True
+    
+    def _is_contemplative_state(self, state_id: int) -> bool:
+        """Détermine si un état est contemplatif (inadapté aux urgences)"""
+        contemplative_states = [1, 45]  # États plus introspectifs
+        return state_id in contemplative_states
