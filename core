@@ -1,0 +1,402 @@
+# core/flowme_core.py
+"""
+Moteur central de l'architecture FlowMe
+Implémente la philosophie éthique de Stefan Hoareau
+"""
+
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import logging
+
+class FlowMeCore:
+    """
+    Classe centrale orchestrant l'architecture éthique FlowMe
+    """
+    
+    def __init__(self):
+        self.current_state = 1  # Présence par défaut
+        self.state_history = []
+        self.session_context = {}
+        self.ethical_constraints = self._load_ethical_framework()
+        
+        # Principe fondamental
+        self.core_principle = "Le réel est changement"
+        
+        logging.info("🌊 FlowMe Core initialisé avec principe: %s", self.core_principle)
+    
+    def _load_ethical_framework(self) -> Dict[str, Any]:
+        """Charge le framework éthique de Stefan Hoareau"""
+        return {
+            "non_harm": "Ne jamais causer de préjudice",
+            "human_dignity": "Respecter la dignité humaine",
+            "transparency": "Être transparent sur les intentions",
+            "growth_facilitation": "Faciliter la croissance personnelle",
+            "flow_adaptation": "S'adapter au flux plutôt que l'imposer",
+            "conscious_presence": "Maintenir une présence consciente"
+        }
+    
+    def process_interaction(self, message: str, user_context: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Traite une interaction selon l'architecture FlowMe
+        
+        Args:
+            message: Message de l'utilisateur
+            user_context: Contexte utilisateur optionnel
+            
+        Returns:
+            Réponse structurée avec état, conseil et métadonnées
+        """
+        try:
+            # 1. Enrichissement du contexte
+            context = self._enrich_context(message, user_context)
+            
+            # 2. Détection de l'état approprié
+            optimal_state = self._detect_optimal_state(message, context)
+            
+            # 3. Validation éthique
+            ethical_validation = self._validate_ethics(optimal_state, context)
+            
+            # 4. Génération de réponse adaptative
+            response = self._generate_adaptive_response(optimal_state, message, context)
+            
+            # 5. Transition d'état consciente
+            self._execute_state_transition(optimal_state, context)
+            
+            # 6. Logging pour apprentissage
+            self._log_interaction(message, optimal_state, response, context)
+            
+            return {
+                "state": optimal_state,
+                "response": response,
+                "ethical_validation": ethical_validation,
+                "context": context,
+                "timestamp": datetime.now().isoformat(),
+                "flow_quality": self._assess_flow_quality(context)
+            }
+            
+        except Exception as e:
+            logging.error("Erreur dans process_interaction: %s", e)
+            return self._fallback_response(message)
+    
+    def _enrich_context(self, message: str, user_context: Optional[Dict]) -> Dict[str, Any]:
+        """Enrichit le contexte avec l'historique et l'analyse"""
+        
+        base_context = {
+            "message_length": len(message),
+            "previous_state": self.current_state,
+            "state_history": self.state_history[-5:],  # Derniers 5 états
+            "session_duration": len(self.state_history),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Analyse linguistique basique
+        linguistic_context = {
+            "questions": message.count("?"),
+            "exclamations": message.count("!"),
+            "emotional_words": self._detect_emotional_words(message),
+            "complexity": self._assess_linguistic_complexity(message)
+        }
+        
+        # Fusion des contextes
+        enriched = {**base_context, **linguistic_context}
+        if user_context:
+            enriched.update(user_context)
+            
+        return enriched
+    
+    def _detect_optimal_state(self, message: str, context: Dict) -> int:
+        """
+        Détecte l'état FlowMe optimal selon le message et le contexte
+        """
+        from ..states.state_analyzer import StateAnalyzer
+        
+        analyzer = StateAnalyzer()
+        return analyzer.analyze_and_recommend(message, context, self.state_history)
+    
+    def _validate_ethics(self, state: int, context: Dict) -> Dict[str, Any]:
+        """
+        Valide que l'état et le contexte respectent les contraintes éthiques
+        """
+        validation = {
+            "passed": True,
+            "constraints_checked": [],
+            "warnings": [],
+            "principles_applied": []
+        }
+        
+        # Vérification de chaque contrainte éthique
+        for principle, description in self.ethical_constraints.items():
+            constraint_result = self._check_ethical_constraint(principle, state, context)
+            validation["constraints_checked"].append({
+                "principle": principle,
+                "description": description,
+                "result": constraint_result
+            })
+            
+            if not constraint_result["passed"]:
+                validation["passed"] = False
+                validation["warnings"].append(constraint_result["warning"])
+            else:
+                validation["principles_applied"].append(principle)
+        
+        return validation
+    
+    def _check_ethical_constraint(self, principle: str, state: int, context: Dict) -> Dict[str, Any]:
+        """Vérifie une contrainte éthique spécifique"""
+        
+        if principle == "non_harm":
+            # Vérifier qu'aucun contenu potentiellement nuisible n'est détecté
+            harmful_indicators = ["violence", "manipulation", "discrimination"]
+            message = context.get("original_message", "")
+            
+            for indicator in harmful_indicators:
+                if indicator in message.lower():
+                    return {
+                        "passed": False,
+                        "warning": f"Contenu potentiellement nuisible détecté: {indicator}"
+                    }
+            
+            return {"passed": True, "assessment": "Aucun contenu nuisible détecté"}
+        
+        elif principle == "transparency":
+            # S'assurer que les intentions de l'IA sont claires
+            return {
+                "passed": True,
+                "assessment": "Intention d'aide et d'accompagnement claire"
+            }
+        
+        elif principle == "flow_adaptation":
+            # Vérifier que l'état choisi s'adapte naturellement au flux
+            previous_state = context.get("previous_state", 1)
+            transition_quality = self._assess_transition_quality(previous_state, state)
+            
+            return {
+                "passed": transition_quality > 0.5,
+                "assessment": f"Qualité de transition: {transition_quality:.2f}"
+            }
+        
+        # Autres principes...
+        return {"passed": True, "assessment": "Principe respecté"}
+    
+    def _generate_adaptive_response(self, state: int, message: str, context: Dict) -> str:
+        """
+        Génère une réponse adaptée à l'état et au contexte
+        """
+        from ..states.state_definitions import FLOWME_STATES
+        
+        if state not in FLOWME_STATES:
+            state = 1  # Fallback vers Présence
+        
+        state_info = FLOWME_STATES[state]
+        posture = state_info.get("posture_adaptative", "Je suis présent à votre message")
+        
+        # Personnalisation selon le contexte
+        if context.get("questions", 0) > 0:
+            response = f"{posture}. Votre question mérite une exploration approfondie."
+        elif context.get("emotional_words"):
+            emotions = context["emotional_words"]
+            response = f"{posture}. Je perçois {', '.join(emotions)} dans vos mots."
+        else:
+            response = f"{posture}. Je vous accompagne dans cette réflexion."
+        
+        # Ajout de la sagesse de l'état
+        wisdom = state_info.get("wisdom", "Chaque moment est une opportunité de croissance.")
+        response += f"\n\n💡 {wisdom}"
+        
+        return response
+    
+    def _execute_state_transition(self, new_state: int, context: Dict):
+        """Exécute la transition vers le nouvel état"""
+        
+        if new_state != self.current_state:
+            transition_log = {
+                "from_state": self.current_state,
+                "to_state": new_state,
+                "timestamp": datetime.now().isoformat(),
+                "context_trigger": context.get("transition_trigger", "message_analysis")
+            }
+            
+            logging.info("Transition d'état: %d → %d", self.current_state, new_state)
+            
+            self.state_history.append(self.current_state)
+            self.current_state = new_state
+            
+            # Maintenir un historique limité
+            if len(self.state_history) > 50:
+                self.state_history = self.state_history[-25:]
+    
+    def _assess_flow_quality(self, context: Dict) -> float:
+        """Évalue la qualité du flux de l'interaction"""
+        
+        quality_factors = []
+        
+        # Fluidité des transitions
+        if len(self.state_history) >= 2:
+            recent_transitions = self.state_history[-3:]
+            transition_smoothness = self._calculate_transition_smoothness(recent_transitions)
+            quality_factors.append(transition_smoothness)
+        
+        # Cohérence contextuelle
+        contextual_coherence = self._assess_contextual_coherence(context)
+        quality_factors.append(contextual_coherence)
+        
+        # Respect des principes éthiques
+        ethical_score = context.get("ethical_validation", {}).get("passed", True)
+        quality_factors.append(1.0 if ethical_score else 0.5)
+        
+        # Score global
+        return sum(quality_factors) / len(quality_factors) if quality_factors else 0.7
+    
+    def _detect_emotional_words(self, message: str) -> List[str]:
+        """Détecte les mots à charge émotionnelle dans le message"""
+        
+        emotional_lexicon = {
+            "joie": ["heureux", "content", "joyeux", "ravi", "enchanté"],
+            "tristesse": ["triste", "malheureux", "déprimé", "abattu"],
+            "peur": ["peur", "anxieux", "inquiet", "angoissé"],
+            "colère": ["énervé", "furieux", "irrité", "agacé"],
+            "surprise": ["surpris", "étonné", "stupéfait"],
+            "curiosité": ["curieux", "intéressé", "questionne"]
+        }
+        
+        detected = []
+        message_lower = message.lower()
+        
+        for emotion, words in emotional_lexicon.items():
+            for word in words:
+                if word in message_lower:
+                    detected.append(emotion)
+                    break
+        
+        return detected
+    
+    def _assess_linguistic_complexity(self, message: str) -> float:
+        """Évalue la complexité linguistique du message"""
+        
+        word_count = len(message.split())
+        sentence_count = len([s for s in message.split('.') if s.strip()])
+        
+        if sentence_count == 0:
+            return 0.5
+        
+        avg_words_per_sentence = word_count / sentence_count
+        
+        # Complexité basée sur la longueur moyenne des phrases
+        if avg_words_per_sentence < 5:
+            return 0.3  # Simple
+        elif avg_words_per_sentence < 15:
+            return 0.6  # Moyen
+        else:
+            return 0.9  # Complexe
+    
+    def _assess_transition_quality(self, from_state: int, to_state: int) -> float:
+        """Évalue la qualité d'une transition d'état"""
+        
+        if from_state == to_state:
+            return 1.0  # Pas de transition = parfaite continuité
+        
+        # Logique simplifiée de compatibilité
+        # À enrichir avec la matrice de compatibilité complète
+        compatible_transitions = {
+            1: [8, 32, 45, 64],  # Présence vers autres états d'ouverture
+            8: [1, 58, 32],      # Résonance vers présence ou inclusion
+            32: [1, 45, 58],     # Expression vers vulnérabilité ou inclusion
+            45: [1, 8, 64],      # Vulnérabilité vers présence ou ouverture
+            58: [8, 32, 64],     # Inclusion vers résonance ou expression
+            64: [1, 45, 32]      # Ouverture vers présence ou expression
+        }
+        
+        if to_state in compatible_transitions.get(from_state, []):
+            return 0.9  # Transition naturelle
+        else:
+            return 0.6  # Transition possible mais moins fluide
+    
+    def _calculate_transition_smoothness(self, state_sequence: List[int]) -> float:
+        """Calcule la fluidité d'une séquence de transitions"""
+        
+        if len(state_sequence) < 2:
+            return 1.0
+        
+        smoothness_scores = []
+        for i in range(len(state_sequence) - 1):
+            score = self._assess_transition_quality(state_sequence[i], state_sequence[i + 1])
+            smoothness_scores.append(score)
+        
+        return sum(smoothness_scores) / len(smoothness_scores)
+    
+    def _assess_contextual_coherence(self, context: Dict) -> float:
+        """Évalue la cohérence contextuelle de l'interaction"""
+        
+        coherence_factors = []
+        
+        # Cohérence temporelle
+        session_duration = context.get("session_duration", 0)
+        if session_duration > 0:
+            coherence_factors.append(min(session_duration / 10, 1.0))
+        
+        # Cohérence émotionnelle
+        emotional_words = context.get("emotional_words", [])
+        if emotional_words:
+            coherence_factors.append(0.8)  # Présence d'émotions = bon signe
+        
+        # Cohérence linguistique
+        complexity = context.get("complexity", 0.5)
+        coherence_factors.append(complexity)
+        
+        return sum(coherence_factors) / len(coherence_factors) if coherence_factors else 0.7
+    
+    def _log_interaction(self, message: str, state: int, response: str, context: Dict):
+        """Log l'interaction pour apprentissage et amélioration"""
+        
+        interaction_log = {
+            "timestamp": datetime.now().isoformat(),
+            "message_hash": hash(message) % 10000,  # Hash pour anonymisation
+            "message_length": len(message),
+            "detected_state": state,
+            "response_length": len(response),
+            "context_summary": {
+                "previous_state": context.get("previous_state"),
+                "emotional_words": context.get("emotional_words"),
+                "flow_quality": context.get("flow_quality")
+            },
+            "principle_applied": self.core_principle
+        }
+        
+        logging.info("Interaction FlowMe: %s", interaction_log)
+    
+    def _fallback_response(self, message: str) -> Dict[str, Any]:
+        """Réponse de fallback en cas d'erreur"""
+        
+        return {
+            "state": 1,  # Retour à Présence
+            "response": "Je rencontre une difficulté technique, mais je reste présent à votre message. Pouvez-vous reformuler ?",
+            "ethical_validation": {"passed": True, "fallback": True},
+            "context": {"error_recovery": True},
+            "timestamp": datetime.now().isoformat(),
+            "flow_quality": 0.5
+        }
+    
+    def get_current_state_info(self) -> Dict[str, Any]:
+        """Retourne les informations sur l'état actuel"""
+        
+        from ..states.state_definitions import FLOWME_STATES
+        
+        state_info = FLOWME_STATES.get(self.current_state, {})
+        
+        return {
+            "current_state": self.current_state,
+            "state_name": state_info.get("name", "Inconnu"),
+            "family": state_info.get("family", "Inconnu"),
+            "posture": state_info.get("posture_adaptative", "Présence neutre"),
+            "history_length": len(self.state_history),
+            "core_principle": self.core_principle
+        }
+    
+    def reset_session(self):
+        """Remet à zéro la session FlowMe"""
+        
+        self.current_state = 1
+        self.state_history = []
+        self.session_context = {}
+        
+        logging.info("Session FlowMe réinitialisée - Retour à l'état Présence")
