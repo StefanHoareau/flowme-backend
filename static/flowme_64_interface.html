@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FlowMe Analytics Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <title>FlowMe - Accompagnement Conscient</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -12,416 +11,628 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
-            padding: 20px;
         }
         
-        .dashboard {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-        }
+        .app { display: flex; height: 100vh; }
         
-        .card {
-            background: rgba(255, 255, 255, 0.95);
+        /* Sidebar simplifiée */
+        .sidebar {
+            width: 300px;
+            background: rgba(255,255,255,0.95);
+            margin: 20px;
             border-radius: 20px;
             padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .card h3 {
-            color: #4a90e2;
-            margin-bottom: 20px;
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
         }
         
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .metric-item {
+        .logo {
             text-align: center;
-            padding: 15px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 12px;
+            margin-bottom: 30px;
         }
         
-        .metric-value {
+        .logo h1 {
+            color: #4a90e2;
             font-size: 2rem;
-            font-weight: bold;
-            color: #28a745;
+            margin-bottom: 5px;
         }
         
-        .metric-label {
-            font-size: 0.9rem;
+        .logo p {
             color: #666;
-            margin-top: 5px;
+            font-size: 0.9rem;
         }
         
-        .chart-container {
+        /* État actuel avec constellation */
+        .current-state {
+            background: linear-gradient(135deg, #50c878 0%, #32cd32 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 25px;
             position: relative;
-            height: 300px;
-            margin: 20px 0;
+            overflow: hidden;
         }
         
-        .state-transition {
+        .state-constellation {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+        
+        .state-main {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .state-name {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+        
+        .state-family {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* Navigation du flux */
+        .flow-navigation {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .flow-title {
+            color: #4a90e2;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .flow-path {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .path-item {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin: 8px 0;
-            border-left: 4px solid #4a90e2;
-        }
-        
-        .flow-indicator {
-            width: 100%;
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        
-        .flow-progress {
-            height: 100%;
-            background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #17a2b8 100%);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }
-        
-        .real-time-feed {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-        }
-        
-        .feed-item {
             padding: 8px 0;
-            border-bottom: 1px solid #f8f9fa;
-            font-size: 0.9rem;
+            border-bottom: 1px solid #e9ecef;
         }
         
-        .feed-time {
-            color: #666;
-            font-size: 0.8rem;
+        .path-item:last-child {
+            border-bottom: none;
         }
         
-        .insight-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .path-state {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #4a90e2;
             color: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 10px;
         }
         
-        .insight-icon {
+        .path-state.active {
+            background: #28a745;
+        }
+        
+        .path-name {
+            font-size: 0.9rem;
+            color: #333;
+        }
+        
+        /* Zone principale */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            margin: 20px 20px 20px 0;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4a90e2 0%, #7b68ee 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
             font-size: 2rem;
             margin-bottom: 10px;
         }
         
-        .trend-indicator {
-            display: inline-flex;
+        .header p {
+            opacity: 0.9;
+        }
+        
+        /* Chat amélioré */
+        .chat-container {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin: 20px 0;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .user-message {
+            text-align: right;
+        }
+        
+        .user-bubble {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 20px 20px 5px 20px;
+            max-width: 70%;
+        }
+        
+        .ai-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .ai-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a90e2 0%, #7b68ee 100%);
+            display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
         }
         
-        .trend-up {
-            background: rgba(40, 167, 69, 0.2);
-            color: #28a745;
+        .ai-content {
+            flex: 1;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
         
-        .trend-down {
-            background: rgba(220, 53, 69, 0.2);
-            color: #dc3545;
+        .ai-response {
+            padding: 20px;
+            line-height: 1.6;
         }
         
-        .trend-stable {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
+        .ai-insight {
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            padding: 15px 20px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .state-transition {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Input zone */
+        .input-zone {
+            background: white;
+            padding: 25px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .input-field {
+            flex: 1;
+            min-height: 50px;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            resize: none;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+        
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a90e2 0%, #7b68ee 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .send-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Questions suggérées */
+        .suggested-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .suggested-question {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .suggested-question:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
         }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <!-- Métriques Générales -->
-        <div class="card">
-            <h3>📊 Métriques de Session</h3>
-            <div class="metric-grid">
-                <div class="metric-item">
-                    <div class="metric-value" id="total-messages">127</div>
-                    <div class="metric-label">Messages Totaux</div>
+    <div class="app">
+        <div class="sidebar">
+            <div class="logo">
+                <h1>🌊 FlowMe</h1>
+                <p>Accompagnement Conscient</p>
+            </div>
+            
+            <div class="current-state">
+                <div class="state-constellation">
+                    ✦ Constellation Initiale
                 </div>
-                <div class="metric-item">
-                    <div class="metric-value" id="unique-states">23</div>
-                    <div class="metric-label">États Explorés</div>
+                <div class="state-main">1</div>
+                <div class="state-name">Présence</div>
+                <div class="state-family">Écoute Subtile</div>
+            </div>
+            
+            <div class="flow-navigation">
+                <div class="flow-title">🗺️ Parcours de Conscience</div>
+                <div class="flow-path">
+                    <div class="path-item">
+                        <div class="path-state active">1</div>
+                        <div class="path-name">Présence • Point de départ</div>
+                    </div>
+                    <div class="path-item">
+                        <div class="path-state">?</div>
+                        <div class="path-name">État suivant à découvrir...</div>
+                    </div>
                 </div>
-                <div class="metric-item">
-                    <div class="metric-value" id="avg-session">8.4m</div>
-                    <div class="metric-label">Durée Moyenne</div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; font-size: 0.85rem; color: #666; text-align: center;">
+                    <strong>💡 Principe FlowMe</strong><br>
+                    Chaque message révèle un état de conscience. L'IA s'adapte à votre flux naturel.
                 </div>
-                <div class="metric-item">
-                    <div class="metric-value" id="satisfaction">94%</div>
-                    <div class="metric-label">Satisfaction</div>
+            </div>
+        </div>
+        
+        <div class="main-area">
+            <div class="header">
+                <h1>Dialogue Conscient</h1>
+                <p>Explorez vos états de conscience en dialogue authentique</p>
+            </div>
+            
+            <div class="chat-container">
+                <div class="message ai-message">
+                    <div class="ai-avatar">F</div>
+                    <div class="ai-content">
+                        <div class="ai-response">
+                            Bienvenue dans cet espace de dialogue conscient. FlowMe détecte votre état de conscience actuel et s'adapte à votre flux naturel d'expression.
+                            <br><br>
+                            <strong>Comment vous sentez-vous en ce moment ?</strong>
+                            <br><br>
+                            Exprimez-vous librement - tristesse, joie, questionnement, colère... Tout est accueilli avec bienveillance.
+                        </div>
+                        <div class="ai-insight">
+                            💫 <strong>État actuel :</strong> Présence - Votre point de départ naturel pour cette exploration
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="flow-indicator">
-                <div class="flow-progress" style="width: 78%"></div>
-            </div>
-            <div style="text-align: center; font-size: 0.9rem; color: #666;">
-                Efficacité de Détection: 78%
-            </div>
-        </div>
-        
-        <!-- Distribution des États -->
-        <div class="card">
-            <h3>🎯 Distribution des États</h3>
-            <div class="chart-container">
-                <canvas id="statesChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Tendances Temporelles -->
-        <div class="card">
-            <h3>⏰ Évolution Temporelle</h3>
-            <div class="chart-container">
-                <canvas id="timelineChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Familles Symboliques -->
-        <div class="card">
-            <h3>🏛️ Familles Symboliques</h3>
-            <div class="state-transition">
-                <span>Écoute Subtile</span>
-                <span class="trend-indicator trend-up">↗ +12%</span>
-            </div>
-            <div class="state-transition">
-                <span>Voix Oubliées</span>
-                <span class="trend-indicator trend-stable">→ =3%</span>
-            </div>
-            <div class="state-transition">
-                <span>Disponibilité Nue</span>
-                <span class="trend-indicator trend-up">↗ +8%</span>
-            </div>
-            <div class="state-transition">
-                <span>Inclusion</span>
-                <span class="trend-indicator trend-down">↘ -5%</span>
-            </div>
-            <div class="state-transition">
-                <span>Ancrage</span>
-                <span class="trend-indicator trend-up">↗ +15%</span>
-            </div>
-            <div class="state-transition">
-                <span>NatVik</span>
-                <span class="trend-indicator trend-stable">→ +2%</span>
-            </div>
-        </div>
-        
-        <!-- Insights IA -->
-        <div class="card">
-            <h3>🧠 Insights Éthiques</h3>
-            <div class="insight-card">
-                <div class="insight-icon">💡</div>
-                <strong>Pattern Émergent Détecté</strong>
-                <p>Les utilisateurs passent de Vulnérabilité (45) à Expression (32) dans 73% des cas, suggérant un processus de guérison naturel.</p>
-            </div>
-            
-            <div class="insight-card">
-                <div class="insight-icon">🌱</div>
-                <strong>Opportunité de Croissance</strong>
-                <p>État 64 (Porte Ouverte) souvent atteint après 5+ messages, indiquant une maturation du dialogue.</p>
-            </div>
-        </div>
-        
-        <!-- Feed Temps Réel -->
-        <div class="card">
-            <h3>📡 Détections Temps Réel</h3>
-            <div class="real-time-feed" id="real-time-feed">
-                <div class="feed-item">
-                    <strong>État 45 détecté</strong> - "je suis triste"
-                    <div class="feed-time">Il y a 2 minutes</div>
+            <div class="input-zone">
+                <div class="input-container">
+                    <textarea 
+                        class="input-field" 
+                        placeholder="Exprimez-vous authentiquement..."
+                        rows="1"
+                        id="messageInput"
+                    ></textarea>
+                    <button class="send-button" onclick="sendMessage()">
+                        ➤
+                    </button>
                 </div>
-                <div class="feed-item">
-                    <strong>Transition 45→32</strong> - Expression émergente
-                    <div class="feed-time">Il y a 3 minutes</div>
-                </div>
-                <div class="feed-item">
-                    <strong>État 7 détecté</strong> - "comment changer"
-                    <div class="feed-time">Il y a 5 minutes</div>
-                </div>
-                <div class="feed-item">
-                    <strong>État 22 détecté</strong> - "lacet cassé"
-                    <div class="feed-time">Il y a 8 minutes</div>
+                
+                <div class="suggested-questions">
+                    <div class="suggested-question" onclick="useQuestion('Je me sens un peu perdu aujourd\'hui')">
+                        💭 Je me sens perdu
+                    </div>
+                    <div class="suggested-question" onclick="useQuestion('Comment puis-je changer ma situation ?')">
+                        🔄 Comment changer ?
+                    </div>
+                    <div class="suggested-question" onclick="useQuestion('J\'ai besoin de parler à quelqu\'un')">
+                        💬 Besoin de parler
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        // Configuration des graphiques
-        const statesCtx = document.getElementById('statesChart').getContext('2d');
-        const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+        let messageCount = 0;
+        let currentState = 1;
+        let stateHistory = [1];
         
-        // Graphique de distribution des états
-        new Chart(statesCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Présence (1)', 'Curiosité (7)', 'Résonance (8)', 'Expression (32)', 'Vulnérabilité (45)', 'Inclusion (58)', 'Ouverture (64)'],
-                datasets: [{
-                    data: [25, 15, 12, 18, 20, 8, 12],
-                    backgroundColor: [
-                        '#667eea', '#50c878', '#ff6b6b', '#ffa726', 
-                        '#ab47bc', '#26c6da', '#66bb6a'
-                    ],
-                    borderWidth: 3,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            font: { size: 10 },
-                            usePointStyle: true
-                        }
-                    }
-                }
+        // Auto-resize textarea
+        document.getElementById('messageInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Enter to send
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
         });
         
-        // Graphique temporel
-        new Chart(timelineCtx, {
-            type: 'line',
-            data: {
-                labels: ['9h', '10h', '11h', '12h', '13h', '14h', '15h'],
-                datasets: [{
-                    label: 'États Positifs',
-                    data: [12, 19, 15, 25, 22, 30, 28],
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }, {
-                    label: 'États Difficiles',
-                    data: [8, 12, 18, 15, 10, 8, 12],
-                    borderColor: '#dc3545',
-                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0,0,0,0.05)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.05)'
-                        }
-                    }
-                }
+        function useQuestion(question) {
+            document.getElementById('messageInput').value = question;
+            sendMessage();
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Ajouter message utilisateur
+            addUserMessage(message);
+            
+            // Simuler réponse IA améliorée
+            setTimeout(() => {
+                analyzeAndRespond(message);
+            }, 1000);
+            
+            input.value = '';
+            input.style.height = 'auto';
+        }
+        
+        function addUserMessage(message) {
+            const container = document.querySelector('.chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+            messageDiv.innerHTML = `<div class="user-bubble">${message}</div>`;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function analyzeAndRespond(message) {
+            messageCount++;
+            
+            // Détection d'état simplifiée mais améliorée
+            let detectedState = detectState(message);
+            let stateChanged = detectedState !== currentState;
+            
+            if (stateChanged) {
+                currentState = detectedState;
+                stateHistory.push(detectedState);
+                updateStateDisplay(detectedState);
             }
-        });
-        
-        // Simulation de mise à jour temps réel
-        function updateRealTimeFeed() {
-            const states = [
-                {id: 1, name: "Présence"},
-                {id: 7, name: "Curiosité"},
-                {id: 32, name: "Expression"},
-                {id: 45, name: "Vulnérabilité"}
-            ];
             
-            const messages = [
-                "bonjour", "comment ça va", "je suis triste", 
-                "pourquoi", "j'ai besoin d'aide"
-            ];
-            
-            setInterval(() => {
-                const feed = document.getElementById('real-time-feed');
-                const randomState = states[Math.floor(Math.random() * states.length)];
-                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-                
-                const newItem = document.createElement('div');
-                newItem.className = 'feed-item';
-                newItem.innerHTML = `
-                    <strong>État ${randomState.id} détecté</strong> - "${randomMessage}"
-                    <div class="feed-time">À l'instant</div>
-                `;
-                
-                feed.insertBefore(newItem, feed.firstChild);
-                
-                // Garder seulement les 8 derniers éléments
-                while(feed.children.length > 8) {
-                    feed.removeChild(feed.lastChild);
-                }
-            }, 3000);
+            // Générer réponse contextuelle
+            const response = generateContextualResponse(message, detectedState, stateChanged);
+            addAIMessage(response, detectedState, stateChanged);
         }
         
-        // Démarrer la simulation
-        updateRealTimeFeed();
-        
-        // Animation des métriques
-        function animateMetrics() {
-            const metrics = [
-                {id: 'total-messages', target: 127},
-                {id: 'unique-states', target: 23},
-                {id: 'satisfaction', target: 94}
-            ];
+        function detectState(message) {
+            const msg = message.toLowerCase();
             
-            metrics.forEach(metric => {
-                const element = document.getElementById(metric.id);
-                let current = 0;
-                const increment = metric.target / 50;
-                
-                const timer = setInterval(() => {
-                    current += increment;
-                    if (current >= metric.target) {
-                        current = metric.target;
-                        clearInterval(timer);
-                    }
-                    
-                    if (metric.id === 'satisfaction') {
-                        element.textContent = Math.round(current) + '%';
-                    } else {
-                        element.textContent = Math.round(current);
-                    }
-                }, 50);
-            });
+            if (msg.includes('triste') || msg.includes('mal') || msg.includes('souffre')) {
+                return 45; // Vulnérabilité
+            } else if (msg.includes('comment') || msg.includes('pourquoi') || msg.includes('changer')) {
+                return 7; // Curiosité
+            } else if (msg.includes('cassé') || msg.includes('réparer') || msg.includes('problème')) {
+                return 22; // Pragmatisme
+            } else if (msg.includes('colère') || msg.includes('énervé') || msg.includes('furieux')) {
+                return 14; // Colère
+            } else if (msg.includes('merci') || msg.includes('gratitude')) {
+                return 8; // Résonance
+            }
+            
+            return 1; // Présence par défaut
         }
         
-        // Démarrer les animations
-        animateMetrics();
+        function generateContextualResponse(message, state, stateChanged) {
+            const states = {
+                1: { name: "Présence", family: "Écoute Subtile" },
+                7: { name: "Curiosité Écoute", family: "Écoute Subtile" },
+                8: { name: "Résonance", family: "Écoute Subtile" },
+                14: { name: "Colère Constructive", family: "NatVik" },
+                22: { name: "Pragmatisme Créatif", family: "Ancrage" },
+                45: { name: "Vulnérabilité Assumée", family: "Disponibilité Nue" }
+            };
+            
+            const stateInfo = states[state] || states[1];
+            
+            // Réponses plus profondes et questionnantes
+            const responses = {
+                45: `Je ressens la profondeur de ce que vous exprimez. Cette tristesse... d'où vient-elle selon vous ? 
+                
+                Parfois, nos émotions difficiles portent des messages importants sur nos besoins non satisfaits ou nos valeurs blessées.
+                
+                **Question pour approfondir :** Qu'est-ce que cette émotion pourrait vouloir vous dire sur ce qui compte vraiment pour vous ?`,
+                
+                7: `Votre questionnement révèle une belle ouverture d'esprit. Cette curiosité sur le changement...
+                
+                **Réflexion :** Qu'est-ce qui vous fait ressentir ce besoin de transformation ? Y a-t-il une partie de votre vie qui appelle à plus d'authenticité ?
+                
+                Le changement commence souvent par un questionnement courageux comme le vôtre.`,
+                
+                22: `J'entends votre approche pratique face aux défis. Cette capacité à identifier les problèmes concrets est précieuse.
+                
+                **Question pragmatique :** Au-delà de réparer ce qui est cassé, qu'est-ce que cette situation vous apprend sur vos ressources intérieures ?
+                
+                Parfois, les problèmes techniques révèlent des solutions créatives inattendues.`,
+                
+                14: `Cette énergie de colère que vous exprimez... elle témoigne de quelque chose d'important touché en vous.
+                
+                **Exploration :** Qu'est-ce qui, derrière cette colère, demande à être respecté ou protégé ? Quelle valeur fondamentale a été bousculée ?
+                
+                La colère est souvent la gardienne de nos limites et de nos besoins essentiels.`,
+                
+                1: `Dans ce moment de présence partagée, qu'est-ce qui émerge spontanément en vous ?
+                
+                **Invitation :** Si vous pouviez donner une couleur ou une image à votre état intérieur actuel, que choisiriez-vous ?
+                
+                L'écoute profonde révèle souvent des nuances insoupçonnées de notre expérience.`
+            };
+            
+            return {
+                text: responses[state] || responses[1],
+                insight: `Transition vers ${stateInfo.name} (${stateInfo.family})`,
+                questions: generateFollowUpQuestions(state)
+            };
+        }
+        
+        function generateFollowUpQuestions(state) {
+            const questions = {
+                45: [
+                    "Qu'est-ce qui vous aiderait à honorer cette émotion ?",
+                    "Y a-t-il quelqu'un qui pourrait vous accompagner ?",
+                    "Cette difficulté révèle-t-elle un besoin particulier ?"
+                ],
+                7: [
+                    "Qu'est-ce qui vous empêche d'avancer ?",
+                    "Quelle serait la première étape concrète ?",
+                    "Qu'apprendriez-vous en explorant cette voie ?"
+                ],
+                22: [
+                    "Quelles ressources avez-vous déjà à disposition ?",
+                    "Qui pourrait vous aider à résoudre cela ?",
+                    "Qu'est-ce que cette situation vous enseigne ?"
+                ],
+                14: [
+                    "Que défendez-vous à travers cette colère ?",
+                    "Comment transformer cette énergie positivement ?",
+                    "Qu'est-ce qui mériterait d'être dit clairement ?"
+                ],
+                1: [
+                    "Qu'est-ce qui vous traverse en ce moment ?",
+                    "De quoi avez-vous besoin aujourd'hui ?",
+                    "Qu'est-ce qui compte vraiment pour vous ?"
+                ]
+            };
+            
+            return questions[state] || questions[1];
+        }
+        
+        function addAIMessage(response, state, stateChanged) {
+            const container = document.querySelector('.chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ai-message';
+            
+            messageDiv.innerHTML = `
+                <div class="ai-avatar">F</div>
+                <div class="ai-content">
+                    <div class="ai-response">${response.text}</div>
+                    ${stateChanged ? `<div class="state-transition">✨ ${response.insight}</div>` : ''}
+                    <div class="ai-insight">
+                        <strong>💭 Questions pour approfondir :</strong><br>
+                        ${response.questions.map(q => `• ${q}`).join('<br>')}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function updateStateDisplay(state) {
+            const states = {
+                1: { name: "Présence", family: "Écoute Subtile", color: "#50c878" },
+                7: { name: "Curiosité Écoute", family: "Écoute Subtile", color: "#4a90e2" },
+                8: { name: "Résonance", family: "Écoute Subtile", color: "#20c997" },
+                14: { name: "Colère Constructive", family: "NatVik", color: "#fd7e14" },
+                22: { name: "Pragmatisme Créatif", family: "Ancrage", color: "#6f42c1" },
+                45: { name: "Vulnérabilité Assumée", family: "Disponibilité Nue", color: "#dc3545" }
+            };
+            
+            const stateInfo = states[state] || states[1];
+            const stateDisplay = document.querySelector('.current-state');
+            
+            stateDisplay.style.background = `linear-gradient(135deg, ${stateInfo.color} 0%, ${stateInfo.color}cc 100%)`;
+            
+            document.querySelector('.state-main').textContent = state;
+            document.querySelector('.state-name').textContent = stateInfo.name;
+            document.querySelector('.state-family').textContent = stateInfo.family;
+            
+            // Animation de changement
+            stateDisplay.classList.add('pulse');
+            setTimeout(() => stateDisplay.classList.remove('pulse'), 2000);
+        }
     </script>
 </body>
 </html>
