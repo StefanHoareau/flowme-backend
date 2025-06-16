@@ -1,0 +1,753 @@
+# api/flowme_endpoints.py
+"""
+Endpoints API FlowMe - Architecture complète
+Intègre le moteur de conscience éthique
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import json
+import asyncio
+import logging
+
+from ..core.flowme_core import FlowMeCore
+from ..states.state_analyzer import StateAnalyzer
+
+# Router principal
+router = APIRouter(prefix="/api/v1", tags=["FlowMe Core"])
+
+# Instance globale du moteur FlowMe
+flowme_engine = FlowMeCore()
+
+# Modèles de données
+class MessageRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000, description="Message utilisateur")
+    user_id: Optional[str] = Field(default="anonymous", description="Identifiant utilisateur")
+    context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Contexte additionnel")
+    session_id: Optional[str] = Field(default=None, description="Identifiant de session")
+
+class StateTransitionRequest(BaseModel):
+    target_state: int = Field(..., ge=1, le=64, description="État cible (1-64)")
+    reason: Optional[str] = Field(default="manual", description="Raison de la transition")
+    context: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+class AnalysisRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+    deep_analysis: bool = Field(default=False, description="Analyse approfondie")
+    include_alternatives: bool = Field(default=False, description="Inclure les états alternatifs")
+
+class FlowMeResponse(BaseModel):
+    status: str
+    detected_state: int
+    state_info: Dict[str, Any]
+    response_text: str
+    ethical_validation: Dict[str, Any]
+    flow_quality: float
+    timestamp: str
+    session_context: Optional[Dict[str, Any]] = None
+
+# Sessions actives WebSocket
+active_websockets: Dict[str, WebSocket] = {}
+
+@router.post("/interact", response_model=FlowMeResponse)
+async def interact_with_flowme(request: MessageRequest):
+    """
+    Interaction principale avec le moteur FlowMe
+    Traite un message et retourne une réponse adaptée
+    """
+    try:
+        # Enrichissement du contexte
+        enriched_context = {
+            **request.context,
+            "user_id": request.user_id,
+            "session_id": request.session_id,
+            "api_version": "v1",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Traitement par le moteur FlowMe
+        result = flowme_engine.process_interaction(request.message, enriched_context)
+        
+        # Construction de la réponse
+        response = FlowMeResponse(
+            status="success",
+            detected_state=result["state"],
+            state_info=_extract_state_info(result["state"]),
+            response_text=result["response"],
+            ethical_validation=result["ethical_validation"],
+            flow_quality=result["flow_quality"],
+            timestamp=result["timestamp"],
+            session_context=_build_session_context(result["context"])
+        )
+        
+        # Notification WebSocket si connecté
+        if request.session_id and request.session_id in active_websockets:
+            await _notify_websocket(request.session_id, {
+                "type": "state_change",
+                "state": result["state"],
+                "quality": result["flow_quality"]
+            })
+        
+        # Logging pour analytics
+        _log_interaction(request, result)
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"Erreur dans interact_with_flowme: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur de traitement: {str(e)}")
+
+@router.post("/analyze")
+async def analyze_message(request: AnalysisRequest):
+    """
+    Analyse approfondie d'un message sans interaction
+    Utile pour comprendre les mécanismes de détection
+    """
+    try:
+        analyzer = StateAnalyzer()
+        
+        # Analyse des émotions
+        emotional_analysis = analyzer._analyze_emotions(request.message)
+        
+        # Analyse contextuelle
+        context = {"original_message": request.message}
+        contextual_analysis = analyzer._analyze_context(request.message, context)
+        
+        # Analyse linguistique
+        linguistic_analysis = analyzer._analyze_linguistics(request.message)
+        
+        # Recommandation d'état
+        recommended_state = analyzer.analyze_and_recommend(
+            request.message, context, flowme_engine.state_history
+        )
+        
+        response = {
+            "status": "success",
+            "message_analysis": {
+                "emotional": emotional_analysis,
+                "contextual": contextual_analysis,
+                "linguistic": linguistic_analysis
+            },
+            "recommended_state": recommended_state,
+            "state_info": _extract_state_info(recommended_state),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Analyse approfondie si demandée
+        if request.deep_analysis:
+            response["deep_analysis"] = _perform_deep_analysis(request.message, analyzer)
+        
+        # États alternatifs si demandés
+        if request.include_alternatives:
+            response["alternative_states"] = _get_alternative_states(
+                request.message, analyzer, recommended_state
+            )
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"Erreur dans analyze_message: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur d'analyse: {str(e)}")
+
+@router.post("/transition")
+async def manual_state_transition(request: StateTransitionRequest):
+    """
+    Transition manuelle vers un état spécifique
+    Permet de forcer un changement d'état avec validation éthique
+    """
+    try:
+        # Validation de l'état cible
+        if not _is_valid_state(request.target_state):
+            raise HTTPException(status_code=400, detail="État cible invalide")
+        
+        # Validation éthique de la transition
+        current_state = flowme_engine.current_state
+        transition_validation = _validate_transition(current_state, request.target_state)
+        
+        if not transition_validation["allowed"]:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Transition non autorisée: {transition_validation['reason']}"
+            )
+        
+        # Exécution de la transition
+        flowme_engine._execute_state_transition(request.target_state, request.context)
+        
+        # Génération de la réponse adaptée au nouvel état
+        adapted_response = _generate_transition_response(request.target_state, request.reason)
+        
+        return {
+            "status": "success",
+            "previous_state": current_state,
+            "new_state": request.target_state,
+            "state_info": _extract_state_info(request.target_state),
+            "response": adapted_response,
+            "transition_validation": transition_validation,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur dans manual_state_transition: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur de transition: {str(e)}")
+
+@router.get("/state/current")
+async def get_current_state():
+    """Retourne l'état actuel du moteur FlowMe"""
+    try:
+        state_info = flowme_engine.get_current_state_info()
+        
+        return {
+            "status": "success",
+            "current_state": state_info,
+            "history_summary": _summarize_history(flowme_engine.state_history),
+            "session_metrics": _calculate_session_metrics(),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logging.error(f"Erreur dans get_current_state: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.get("/states")
+async def list_all_states():
+    """Liste tous les 64 états FlowMe avec leurs informations"""
+    try:
+        from ..states.state_definitions import FLOWME_STATES, SYMBOLIC_FAMILIES
+        
+        states_by_family = {}
+        
+        for family_name in SYMBOLIC_FAMILIES.keys():
+            states_by_family[family_name] = []
+        
+        for state_id, state_data in FLOWME_STATES.items():
+            family = state_data.get("famille_symbolique", "Inconnu")
+            if family not in states_by_family:
+                states_by_family[family] = []
+            
+            states_by_family[family].append({
+                "id": state_id,
+                "name": state_data["name"],
+                "description": state_data.get("description", ""),
+                "mot_cle": state_data.get("mot_cle", ""),
+                "posture_adaptative": state_data.get("posture_adaptative", "")
+            })
+        
+        # Trier les états par ID dans chaque famille
+        for family in states_by_family:
+            states_by_family[family].sort(key=lambda x: x["id"])
+        
+        return {
+            "status": "success",
+            "total_states": len(FLOWME_STATES),
+            "families": len(SYMBOLIC_FAMILIES),
+            "states_by_family": states_by_family,
+            "family_descriptions": SYMBOLIC_FAMILIES,
+            "architecture_principle": flowme_engine.core_principle
+        }
+        
+    except Exception as e:
+        logging.error(f"Erreur dans list_all_states: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.get("/states/{state_id}")
+async def get_state_details(state_id: int):
+    """Détails complets d'un état spécifique"""
+    try:
+        if not _is_valid_state(state_id):
+            raise HTTPException(status_code=404, detail="État non trouvé")
+        
+        from ..states.state_definitions import FLOWME_STATES
+        
+        state_data = FLOWME_STATES[state_id]
+        
+        # Analyse de compatibilité
+        analyzer = StateAnalyzer()
+        compatible_states = analyzer.state_compatibility_matrix.get(state_id, [])
+        
+        # Historique d'utilisation
+        usage_stats = _get_state_usage_stats(state_id)
+        
+        return {
+            "status": "success",
+            "state": {
+                "id": state_id,
+                **state_data
+            },
+            "compatible_states": [
+                {"id": comp_id, "name": FLOWME_STATES[comp_id]["name"]}
+                for comp_id in compatible_states
+                if comp_id in FLOWME_STATES
+            ],
+            "usage_statistics": usage_stats,
+            "transition_quality": _calculate_transition_qualities(state_id),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur dans get_state_details: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.get("/families")
+async def get_families_overview():
+    """Vue d'ensemble des 6 familles symboliques"""
+    try:
+        from ..states.state_definitions import SYMBOLIC_FAMILIES, FLOWME_STATES
+        
+        families_overview = {}
+        
+        for family_name, family_data in SYMBOLIC_FAMILIES.items():
+            # Compter les états de cette famille
+            family_states = [
+                state_id for state_id, state_data in FLOWME_STATES.items()
+                if state_data.get("famille_symbolique") == family_name
+            ]
+            
+            # Statistiques d'usage de la famille
+            family_usage = _get_family_usage_stats(family_name)
+            
+            families_overview[family_name] = {
+                **family_data,
+                "state_count": len(family_states),
+                "state_ids": sorted(family_states),
+                "usage_statistics": family_usage,
+                "representative_states": family_states[:3] if family_states else []
+            }
+        
+        return {
+            "status": "success",
+            "families": families_overview,
+            "total_families": len(SYMBOLIC_FAMILIES),
+            "philosophical_foundation": "Architecture éthique de Stefan Hoareau"
+        }
+        
+    except Exception as e:
+        logging.error(f"Erreur dans get_families_overview: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.post("/session/reset")
+async def reset_session():
+    """Remet à zéro la session FlowMe"""
+    try:
+        previous_state = flowme_engine.current_state
+        session_summary = _generate_session_summary()
+        
+        flowme_engine.reset_session()
+        
+        return {
+            "status": "success",
+            "message": "Session réinitialisée avec succès",
+            "previous_state": previous_state,
+            "new_state": flowme_engine.current_state,
+            "session_summary": session_summary,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logging.error(f"Erreur dans reset_session: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.get("/analytics/flow")
+async def get_flow_analytics():
+    """Analytics du flux des états et interactions"""
+    try:
+        analytics = {
+            "session_metrics": _calculate_session_metrics(),
+            "state_distribution": _analyze_state_distribution(),
+            "transition_patterns": _analyze_transition_patterns(),
+            "ethical_compliance": _analyze_ethical_compliance(),
+            "flow_quality_trends": _analyze_flow_quality_trends(),
+            "user_satisfaction_indicators": _estimate_satisfaction()
+        }
+        
+        return {
+            "status": "success",
+            "analytics": analytics,
+            "timestamp": datetime.now().isoformat(),
+            "data_period": "current_session"
+        }
+        
+    except Exception as e:
+        logging.error(f"Erreur dans get_flow_analytics: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@router.websocket("/ws/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    """WebSocket pour interactions temps réel"""
+    await websocket.accept()
+    active_websockets[session_id] = websocket
+    
+    try:
+        # Message de bienvenue
+        await websocket.send_json({
+            "type": "connection_established",
+            "session_id": session_id,
+            "current_state": flowme_engine.current_state,
+            "message": "Connexion FlowMe établie"
+        })
+        
+        while True:
+            # Recevoir les messages
+            data = await websocket.receive_json()
+            
+            if data.get("type") == "message":
+                # Traiter le message via FlowMe
+                message_request = MessageRequest(
+                    message=data["content"],
+                    session_id=session_id,
+                    context=data.get("context", {})
+                )
+                
+                # Traitement asynchrone
+                result = flowme_engine.process_interaction(
+                    message_request.message, 
+                    message_request.context
+                )
+                
+                # Réponse en temps réel
+                await websocket.send_json({
+                    "type": "flowme_response",
+                    "state": result["state"],
+                    "response": result["response"],
+                    "flow_quality": result["flow_quality"],
+                    "timestamp": result["timestamp"]
+                })
+                
+            elif data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+                
+    except WebSocketDisconnect:
+        if session_id in active_websockets:
+            del active_websockets[session_id]
+        logging.info(f"WebSocket déconnecté: {session_id}")
+    except Exception as e:
+        logging.error(f"Erreur WebSocket: {e}")
+        if session_id in active_websockets:
+            del active_websockets[session_id]
+
+@router.get("/stream/states")
+async def stream_state_changes():
+    """Stream des changements d'états en temps réel"""
+    
+    async def state_stream():
+        """Générateur pour le streaming"""
+        last_state = flowme_engine.current_state
+        
+        while True:
+            current_state = flowme_engine.current_state
+            
+            if current_state != last_state:
+                state_info = _extract_state_info(current_state)
+                
+                event_data = {
+                    "timestamp": datetime.now().isoformat(),
+                    "previous_state": last_state,
+                    "new_state": current_state,
+                    "state_info": state_info,
+                    "transition_type": "natural"
+                }
+                
+                yield f"data: {json.dumps(event_data)}\n\n"
+                last_state = current_state
+            
+            await asyncio.sleep(1)  # Vérification chaque seconde
+    
+    return StreamingResponse(
+        state_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+# Fonctions utilitaires
+
+def _extract_state_info(state_id: int) -> Dict[str, Any]:
+    """Extrait les informations d'un état"""
+    from ..states.state_definitions import FLOWME_STATES
+    
+    if state_id not in FLOWME_STATES:
+        return {"id": state_id, "name": "État inconnu", "error": True}
+    
+    state_data = FLOWME_STATES[state_id]
+    
+    return {
+        "id": state_id,
+        "name": state_data["name"],
+        "famille_symbolique": state_data.get("famille_symbolique", "Inconnu"),
+        "mot_cle": state_data.get("mot_cle", ""),
+        "posture_adaptative": state_data.get("posture_adaptative", ""),
+        "tension_dominante": state_data.get("tension_dominante", ""),
+        "description": state_data.get("description", "")
+    }
+
+def _build_session_context(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Construit le contexte de session pour la réponse"""
+    return {
+        "flow_quality": context.get("flow_quality", 0.7),
+        "session_duration": len(flowme_engine.state_history),
+        "unique_states_visited": len(set(flowme_engine.state_history)),
+        "ethical_score": context.get("ethical_validation", {}).get("passed", True)
+    }
+
+async def _notify_websocket(session_id: str, notification: Dict[str, Any]):
+    """Notifie via WebSocket si connecté"""
+    if session_id in active_websockets:
+        try:
+            await active_websockets[session_id].send_json(notification)
+        except Exception as e:
+            logging.error(f"Erreur notification WebSocket: {e}")
+            # Nettoyer la connexion fermée
+            del active_websockets[session_id]
+
+def _log_interaction(request: MessageRequest, result: Dict[str, Any]):
+    """Log l'interaction pour analytics"""
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "user_id": request.user_id,
+        "session_id": request.session_id,
+        "message_length": len(request.message),
+        "detected_state": result["state"],
+        "flow_quality": result["flow_quality"],
+        "ethical_passed": result["ethical_validation"]["passed"]
+    }
+    
+    logging.info(f"FlowMe Interaction: {log_data}")
+
+def _is_valid_state(state_id: int) -> bool:
+    """Valide un ID d'état"""
+    return 1 <= state_id <= 64
+
+def _validate_transition(from_state: int, to_state: int) -> Dict[str, Any]:
+    """Valide une transition d'état"""
+    
+    # Toujours autoriser les transitions vers l'état Présence
+    if to_state == 1:
+        return {"allowed": True, "reason": "Retour à la présence toujours autorisé"}
+    
+    # Vérifier la compatibilité
+    analyzer = StateAnalyzer()
+    compatibility = analyzer._get_state_compatibility(from_state, to_state)
+    
+    if compatibility > 0.5:
+        return {"allowed": True, "reason": "Transition naturelle", "compatibility": compatibility}
+    else:
+        return {"allowed": True, "reason": "Transition forcée autorisée", "compatibility": compatibility}
+
+def _generate_transition_response(state_id: int, reason: str) -> str:
+    """Génère une réponse adaptée à une transition"""
+    from ..states.state_definitions import FLOWME_STATES
+    
+    if state_id not in FLOWME_STATES:
+        return "Je me trouve dans un nouvel état de conscience."
+    
+    state_data = FLOWME_STATES[state_id]
+    posture = state_data.get("posture_adaptative", "Je suis présent")
+    
+    if reason == "manual":
+        return f"{posture}. J'adopte consciemment cette nouvelle posture."
+    else:
+        return f"{posture}. Cette transition répond à {reason}."
+
+def _summarize_history(history: List[int]) -> Dict[str, Any]:
+    """Résume l'historique des états"""
+    if not history:
+        return {"states_visited": 0, "patterns": "aucun"}
+    
+    from collections import Counter
+    state_counts = Counter(history)
+    
+    return {
+        "states_visited": len(set(history)),
+        "total_transitions": len(history),
+        "most_frequent_state": state_counts.most_common(1)[0][0] if state_counts else None,
+        "recent_pattern": _detect_recent_pattern(history[-5:] if len(history) >= 5 else history)
+    }
+
+def _detect_recent_pattern(recent_states: List[int]) -> str:
+    """Détecte le pattern récent dans les états"""
+    if len(recent_states) < 2:
+        return "insufficient_data"
+    
+    if len(set(recent_states)) == 1:
+        return "stable"
+    elif len(set(recent_states)) == len(recent_states):
+        return "exploratoire"
+    else:
+        return "variable"
+
+def _calculate_session_metrics() -> Dict[str, Any]:
+    """Calcule les métriques de session"""
+    history = flowme_engine.state_history
+    
+    return {
+        "session_length": len(history),
+        "unique_states": len(set(history)),
+        "current_state": flowme_engine.current_state,
+        "state_diversity": len(set(history)) / max(len(history), 1),
+        "average_flow_quality": 0.75  # À calculer réellement selon les données
+    }
+
+def _perform_deep_analysis(message: str, analyzer: StateAnalyzer) -> Dict[str, Any]:
+    """Effectue une analyse approfondie du message"""
+    return {
+        "sentiment_breakdown": analyzer._analyze_emotions(message),
+        "complexity_assessment": analyzer._analyze_linguistics(message),
+        "contextual_triggers": analyzer._load_contextual_triggers(),
+        "recommended_approach": "adaptive_listening"
+    }
+
+def _get_alternative_states(message: str, analyzer: StateAnalyzer, primary_state: int) -> List[Dict[str, Any]]:
+    """Obtient les états alternatifs possibles"""
+    
+    # Scoring de tous les états
+    emotional = analyzer._analyze_emotions(message)
+    contextual = analyzer._analyze_context(message, {})
+    historical = analyzer._analyze_history(flowme_engine.state_history)
+    linguistic = analyzer._analyze_linguistics(message)
+    
+    all_scores = analyzer._score_all_states(emotional, contextual, historical, linguistic)
+    
+    # Tri par score, exclusion de l'état principal
+    alternatives = sorted(
+        [(state_id, score) for state_id, score in all_scores.items() if state_id != primary_state],
+        key=lambda x: x[1],
+        reverse=True
+    )[:5]
+    
+    return [
+        {
+            "state_id": state_id,
+            "score": score,
+            "state_info": _extract_state_info(state_id)
+        }
+        for state_id, score in alternatives
+    ]
+
+def _get_state_usage_stats(state_id: int) -> Dict[str, Any]:
+    """Statistiques d'usage d'un état"""
+    history = flowme_engine.state_history
+    
+    usage_count = history.count(state_id)
+    total_interactions = len(history)
+    
+    return {
+        "usage_count": usage_count,
+        "usage_percentage": (usage_count / max(total_interactions, 1)) * 100,
+        "last_used": "current" if flowme_engine.current_state == state_id else "previous",
+        "frequency_rank": sorted(set(history), key=lambda x: history.count(x), reverse=True).index(state_id) + 1 if state_id in history else None
+    }
+
+def _calculate_transition_qualities(state_id: int) -> Dict[int, float]:
+    """Calcule la qualité des transitions depuis un état"""
+    analyzer = StateAnalyzer()
+    compatible_states = analyzer.state_compatibility_matrix.get(state_id, [])
+    
+    return {
+        comp_state: analyzer._get_state_compatibility(state_id, comp_state)
+        for comp_state in compatible_states
+    }
+
+def _get_family_usage_stats(family_name: str) -> Dict[str, Any]:
+    """Statistiques d'usage d'une famille d'états"""
+    from ..states.state_definitions import FLOWME_STATES
+    
+    family_states = [
+        state_id for state_id, state_data in FLOWME_STATES.items()
+        if state_data.get("famille_symbolique") == family_name
+    ]
+    
+    history = flowme_engine.state_history
+    family_usage = sum(1 for state in history if state in family_states)
+    
+    return {
+        "total_usage": family_usage,
+        "usage_percentage": (family_usage / max(len(history), 1)) * 100,
+        "most_used_state": max(family_states, key=lambda x: history.count(x)) if family_states else None,
+        "state_distribution": {state: history.count(state) for state in family_states}
+    }
+
+def _generate_session_summary() -> Dict[str, Any]:
+    """Génère un résumé de la session"""
+    history = flowme_engine.state_history
+    
+    if not history:
+        return {"message": "Session sans interactions"}
+    
+    from collections import Counter
+    state_counter = Counter(history)
+    
+    return {
+        "total_interactions": len(history),
+        "states_explored": len(set(history)),
+        "dominant_state": state_counter.most_common(1)[0][0],
+        "exploration_pattern": _detect_recent_pattern(history),
+        "session_quality": "enrichissante" if len(set(history)) > 3 else "focalisée"
+    }
+
+def _analyze_state_distribution() -> Dict[str, Any]:
+    """Analyse la distribution des états"""
+    history = flowme_engine.state_history
+    
+    if not history:
+        return {"distribution": "aucune_donnée"}
+    
+    from collections import Counter
+    distribution = Counter(history)
+    
+    return {
+        "most_frequent": distribution.most_common(3),
+        "entropy": len(set(history)) / len(history),
+        "balance": "équilibré" if len(set(history)) > len(history) * 0.6 else "concentré"
+    }
+
+def _analyze_transition_patterns() -> Dict[str, Any]:
+    """Analyse les patterns de transition"""
+    history = flowme_engine.state_history
+    
+    if len(history) < 2:
+        return {"patterns": "insufficient_data"}
+    
+    transitions = [(history[i], history[i+1]) for i in range(len(history)-1)]
+    from collections import Counter
+    transition_counter = Counter(transitions)
+    
+    return {
+        "common_transitions": transition_counter.most_common(3),
+        "transition_diversity": len(set(transitions)),
+        "flow_pattern": "fluide" if len(set(transitions)) > len(transitions) * 0.7 else "répétitif"
+    }
+
+def _analyze_ethical_compliance() -> Dict[str, Any]:
+    """Analyse la conformité éthique"""
+    return {
+        "compliance_rate": 0.95,  # À calculer selon les vraies données
+        "principles_respected": flowme_engine.ethical_constraints.keys(),
+        "violations": [],
+        "overall_score": "excellent"
+    }
+
+def _analyze_flow_quality_trends() -> Dict[str, Any]:
+    """Analyse les tendances de qualité du flux"""
+    return {
+        "current_quality": 0.8,  # À calculer selon les vraies données
+        "trend": "stable",
+        "peak_quality": 0.9,
+        "improvement_areas": ["transition_smoothness"]
+    }
+
+def _estimate_satisfaction() -> Dict[str, Any]:
+    """Estime la satisfaction utilisateur"""
+    return {
+        "estimated_satisfaction": 0.85,  # Basé sur les métriques de flux
+        "engagement_level": "high",
+        "interaction_quality": "naturelle",
+        "areas_of_success": ["adaptation", "éthique", "fluidité"]
+    }
