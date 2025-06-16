@@ -1,0 +1,409 @@
+# flowme_deep_responses.py - Moteur de réponses approfondies et questionnantes
+"""
+Système de génération de réponses profondes qui stimulent la réflexion
+et accompagnent vers plus de conscience
+"""
+
+import re
+import random
+from typing import Dict, List, Tuple, Optional
+from datetime import datetime
+
+class DeepResponseGenerator:
+    """Générateur de réponses approfondies pour FlowMe"""
+    
+    def __init__(self):
+        self.question_templates = {
+            "exploration": [
+                "Qu'est-ce que {emotion} révèle sur vos besoins profonds ?",
+                "Si cette {situation} était un messager, que viendrait-elle vous dire ?",
+                "Qu'y a-t-il derrière cette {experience} qui demande votre attention ?",
+                "Comment cette {difficulte} pourrait-elle être une invitation à grandir ?"
+            ],
+            "clarification": [
+                "Quand vous dites '{phrase}', qu'est-ce que cela représente vraiment pour vous ?",
+                "Si vous deviez expliquer {concept} à un enfant, comment l'expliqueriez-vous ?",
+                "Qu'est-ce qui rend cette {situation} particulièrement significative ?"
+            ],
+            "ressources": [
+                "Quelles ressources intérieures avez-vous déjà mobilisées dans des situations similaires ?",
+                "Qui dans votre entourage incarnerait la qualité dont vous avez besoin ?",
+                "Si votre meilleur ami vivait cela, que lui conseilleriez-vous ?"
+            ],
+            "sens": [
+                "Comment cette expérience s'inscrit-elle dans votre parcours plus large ?",
+                "Qu'est-ce que cette {situation} vous apprend sur vous-même ?",
+                "En quoi cette difficulté pourrait-elle servir votre évolution ?"
+            ]
+        }
+        
+        # Réponses profondes par état avec questions intégrées
+        self.deep_responses = {
+            45: {  # Vulnérabilité Assumée
+                "accueil": "Je ressens la profondeur de votre vulnérabilité. Cette ouverture authentique à la fragilité témoigne d'un courage remarquable.",
+                "exploration": "Souvent, nos moments les plus difficiles révèlent nos besoins les plus essentiels. Qu'est-ce que cette {emotion} pourrait vouloir vous dire sur ce qui compte vraiment pour vous ?",
+                "questions_approfondissement": [
+                    "Cette difficulté touche-t-elle une valeur fondamentale en vous ?",
+                    "Qu'est-ce qui vous aiderait à honorer cette émotion sans vous y perdre ?",
+                    "Y a-t-il une partie de vous qui demande plus de compassion ?",
+                    "Comment pourriez-vous vous accompagner avec la même bienveillance que vous offririez à un proche ?"
+                ],
+                "insight": "La vulnérabilité partagée devient souvent le terreau de la vraie force et de l'authenticité relationnelle."
+            },
+            
+            7: {  # Curiosité Écoute
+                "accueil": "Votre questionnement révèle une belle ouverture d'esprit et un désir authentique de compréhension. Cette curiosité est un moteur puissant de transformation.",
+                "exploration": "Derrière chaque question sincère se cache souvent une intuition profonde. Qu'est-ce qui vous fait pressentir qu'un changement est possible ou nécessaire ?",
+                "questions_approfondissement": [
+                    "Si vous obteniez la réponse parfaite, qu'est-ce que cela changerait concrètement ?",
+                    "Quelle partie de vous porte déjà des éléments de réponse ?",
+                    "Cette question naît-elle d'une intuition particulière ?",
+                    "Qu'est-ce que vous espérez découvrir en explorant cette voie ?"
+                ],
+                "insight": "Chaque question authentique porte en elle les germes de sa propre réponse, dans la patience de l'exploration."
+            },
+            
+            22: {  # Pragmatisme Créatif
+                "accueil": "J'apprécie votre approche concrète et votre capacité à identifier les défis pratiques. Cette lucidité est une ressource précieuse.",
+                "exploration": "Au-delà de la dimension technique, qu'est-ce que cette situation révèle sur votre rapport à l'efficacité et aux solutions créatives ?",
+                "questions_approfondissement": [
+                    "Quelles sont vos ressources créatives habituelles face aux obstacles ?",
+                    "Cette situation pratique cache-t-elle un défi plus profond ?",
+                    "Comment pourriez-vous transformer cette contrainte en opportunité d'innovation ?",
+                    "Qu'est-ce que cette difficulté vous enseigne sur votre ingéniosité ?"
+                ],
+                "insight": "Les défis pratiques révèlent souvent notre capacité d'adaptation et notre créativité insoupçonnée."
+            },
+            
+            14: {  # Colère Constructive
+                "accueil": "Cette énergie de colère que vous exprimez témoigne de quelque chose d'important qui a été touché en vous. La colère est souvent la gardienne de nos valeurs essentielles.",
+                "exploration": "Qu'est-ce qui, derrière cette colère, demande à être respecté, protégé ou reconnu ? Quelle limite ou quelle valeur fondamentale a été franchie ?",
+                "questions_approfondissement": [
+                    "Si cette colère pouvait parler, que dirait-elle de vos besoins ?",
+                    "Quelle injustice ou quel manque de respect cette émotion dénonce-t-elle ?",
+                    "Comment pourriez-vous transformer cette énergie en force créatrice ?",
+                    "Qu'est-ce qui mériterait d'être exprimé clairement et posément ?"
+                ],
+                "insight": "La colère consciente devient une boussole qui nous guide vers nos besoins authentiques et nos limites saines."
+            },
+            
+            32: {  # Expression Libre
+                "accueil": "Je perçois votre besoin d'expression authentique. Cette parole qui cherche à émerger porte souvent des vérités importantes.",
+                "exploration": "Qu'est-ce qui, en vous, demande absolument à être dit ou entendu ? Quelle vérité personnelle cherche son chemin vers la lumière ?",
+                "questions_approfondissement": [
+                    "Depuis combien de temps cette parole attend-elle d'être exprimée ?",
+                    "Qu'est-ce qui vous empêche habituellement de vous exprimer ainsi ?",
+                    "À qui cette vérité a-t-elle besoin d'être transmise ?",
+                    "Comment votre voix authentique pourrait-elle transformer vos relations ?"
+                ],
+                "insight": "La parole authentique libérée crée souvent des ponts inattendus vers plus d'intimité et de vérité."
+            },
+            
+            58: {  # Inclusion Bienveillante
+                "accueil": "Votre désir de rassemblement et d'harmonie révèle une belle capacité à percevoir les liens entre les êtres et les situations.",
+                "exploration": "Qu'est-ce qui vous fait sentir que quelque chose ou quelqu'un a besoin d'être mieux intégré ou accueilli ?",
+                "questions_approfondissement": [
+                    "Quelles parties de vous-même avez-vous parfois du mal à accepter ?",
+                    "Comment créez-vous des espaces d'accueil dans vos relations ?",
+                    "Quelle réconciliation intérieure ou extérieure appelle votre attention ?",
+                    "Comment votre capacité d'inclusion influence-t-elle votre entourage ?"
+                ],
+                "insight": "L'inclusion authentique commence souvent par l'accueil bienveillant de nos propres contradictions."
+            },
+            
+            64: {  # Porte Ouverte
+                "accueil": "Cette ouverture aux possibilités infinies que vous exprimez témoigne d'une belle disponibilité au changement et à l'inconnu.",
+                "exploration": "Qu'est-ce qui vous fait pressentir que de nouvelles portes sont prêtes à s'ouvrir dans votre vie ?",
+                "questions_approfondissement": [
+                    "Vers quoi votre intuition vous guide-t-elle en ce moment ?",
+                    "Qu'est-ce qui vous empêche parfois d'oser franchir de nouveaux seuils ?",
+                    "Quelle transformation intérieure prépare ces ouvertures extérieures ?",
+                    "Comment accueillez-vous l'incertitude des nouveaux possibles ?"
+                ],
+                "insight": "Le changement authentique naît souvent de notre capacité à rester ouvert à l'imprévu tout en restant ancré dans nos valeurs."
+            },
+            
+            1: {  # Présence
+                "accueil": "Dans ce moment de présence partagée, j'accueille ce qui émerge spontanément en vous avec une attention totale.",
+                "exploration": "Qu'est-ce qui se révèle quand vous vous donnez permission d'être simplement là, sans agenda particulier ?",
+                "questions_approfondissement": [
+                    "Si vous donniez une couleur à votre état intérieur actuel, laquelle choisiriez-vous ?",
+                    "Qu'est-ce qui réclame doucement votre attention en ce moment ?",
+                    "Comment votre corps porte-t-il votre expérience du moment présent ?",
+                    "Quelle qualité d'être voulez-vous cultiver aujourd'hui ?"
+                ],
+                "insight": "Dans l'écoute profonde du moment présent émergent souvent les intuitions les plus justes pour notre chemin."
+            }
+        }
+        
+        # Métaphores et images pour enrichir les réponses
+        self.metaphors = {
+            45: ["jardin qui a besoin d'eau", "rivière qui trouve son lit", "graine qui se fend pour germer"],
+            7: ["explorateur curieux", "clé qui cherche sa serrure", "boussole intérieure"],
+            22: ["artisan créatif", "architecte de solutions", "alchimiste du quotidien"],
+            14: ["volcan créateur", "gardien des limites", "feu transformateur"],
+            32: ["source qui jaillit", "oiseau qui reprend son envol", "vérité qui trouve sa voix"],
+            58: ["tisserand de liens", "pont entre les rives", "jardinier relationnel"],
+            64: ["porte entre les mondes", "horizon qui s'élargit", "semence de possibles"],
+            1: ["lac paisible", "respiration consciente", "racine profonde"]
+        }
+
+    def generate_deep_response(self, message: str, detected_state: int, context: Optional[Dict] = None) -> Dict[str, any]:
+        """Génère une réponse approfondie basée sur l'état détecté"""
+        
+        if detected_state not in self.deep_responses:
+            detected_state = 1
+            
+        state_responses = self.deep_responses[detected_state]
+        context = context or {}
+        
+        # Extraire des éléments clés du message
+        emotional_keywords = self._extract_emotional_keywords(message)
+        situation_elements = self._extract_situation_elements(message)
+        
+        # Construire la réponse
+        response_parts = []
+        
+        # 1. Accueil empathique
+        response_parts.append(state_responses["accueil"])
+        
+        # 2. Exploration contextuelle
+        exploration = state_responses["exploration"]
+        if emotional_keywords:
+            exploration = exploration.replace("{emotion}", emotional_keywords[0])
+        if situation_elements:
+            exploration = exploration.replace("{situation}", situation_elements[0])
+        response_parts.append(exploration)
+        
+        # 3. Métaphore enrichissante
+        metaphor = random.choice(self.metaphors[detected_state])
+        metaphor_sentence = f"Comme {metaphor}, votre expérience porte en elle une sagesse particulière."
+        response_parts.append(metaphor_sentence)
+        
+        # 4. Questions d'approfondissement (2-3 questions pertinentes)
+        questions = random.sample(state_responses["questions_approfondissement"], 2)
+        
+        # 5. Insight final
+        insight = state_responses["insight"]
+        
+        return {
+            "response_text": "\n\n".join(response_parts),
+            "deepening_questions": questions,
+            "wisdom_insight": insight,
+            "metaphor_used": metaphor,
+            "detected_themes": {
+                "emotions": emotional_keywords,
+                "situations": situation_elements
+            }
+        }
+    
+    def _extract_emotional_keywords(self, message: str) -> List[str]:
+        """Extrait les mots-clés émotionnels du message"""
+        emotional_words = [
+            "tristesse", "joie", "colère", "peur", "anxiété", "stress",
+            "solitude", "confusion", "espoir", "gratitude", "amour",
+            "frustration", "déception", "surprise", "nostalgie"
+        ]
+        
+        found_emotions = []
+        message_lower = message.lower()
+        
+        for emotion in emotional_words:
+            if emotion in message_lower:
+                found_emotions.append(emotion)
+                
+        return found_emotions
+    
+    def _extract_situation_elements(self, message: str) -> List[str]:
+        """Extrait les éléments situationnels du message"""
+        situation_words = [
+            "travail", "famille", "couple", "relation", "conflit",
+            "décision", "changement", "projet", "difficulté", "défi",
+            "opportunité", "problème", "objectif", "rêve", "avenir"
+        ]
+        
+        found_situations = []
+        message_lower = message.lower()
+        
+        for situation in situation_words:
+            if situation in message_lower:
+                found_situations.append(situation)
+                
+        return found_situations
+    
+    def generate_constellation_response(self, current_state: int, previous_states: List[int]) -> Dict[str, any]:
+        """Génère une réponse tenant compte de la constellation d'états"""
+        
+        if len(previous_states) < 2:
+            return {"constellation_insight": None}
+        
+        # Analyser les patterns de transition
+        transitions = []
+        for i in range(len(previous_states) - 1):
+            transitions.append((previous_states[i], previous_states[i + 1]))
+        
+        # Identifier les familles d'états explorées
+        families_explored = self._get_families_from_states(previous_states + [current_state])
+        
+        # Générer insight sur la constellation
+        constellation_insights = {
+            "exploration_emotionnelle": "Votre parcours révèle une belle capacité à naviguer entre différents registres émotionnels.",
+            "approfondissement": "Cette séquence d'états montre un processus d'approfondissement naturel.",
+            "integration": "Vous semblez intégrer différentes dimensions de votre expérience.",
+            "transformation": "Un mouvement de transformation se dessine à travers ces transitions."
+        }
+        
+        # Déterminer le type de constellation
+        if len(families_explored) >= 3:
+            constellation_type = "exploration_emotionnelle"
+        elif any(abs(t[1] - t[0]) > 20 for t in transitions):
+            constellation_type = "transformation"
+        elif len(set(previous_states[-3:])) == 1:
+            constellation_type = "approfondissement"
+        else:
+            constellation_type = "integration"
+        
+        return {
+            "constellation_insight": constellation_insights[constellation_type],
+            "families_explored": families_explored,
+            "transition_pattern": constellation_type,
+            "depth_indicator": len(set(previous_states + [current_state]))
+        }
+    
+    def _get_families_from_states(self, states: List[int]) -> List[str]:
+        """Retourne les familles symboliques des états"""
+        state_families = {
+            1: "Écoute subtile", 7: "Écoute subtile", 8: "Écoute subtile",
+            14: "NatVik", 22: "Ancrage", 32: "Voix oubliées",
+            39: "Ancrage", 45: "Disponibilité nue", 58: "Inclusion",
+            64: "Disponibilité nue"
+        }
+        
+        families = []
+        for state in states:
+            if state in state_families:
+                families.append(state_families[state])
+        
+        return list(set(families))
+    
+    def generate_follow_up_suggestions(self, detected_state: int, message: str) -> List[str]:
+        """Génère des suggestions de suivi contextuel"""
+        
+        suggestions_by_state = {
+            45: [
+                "Explorer les ressources intérieures de résilience",
+                "Identifier le besoin derrière cette émotion",
+                "Trouver des façons saines d'honorer cette vulnérabilité"
+            ],
+            7: [
+                "Approfondir cette curiosité par l'expérimentation",
+                "Identifier les premiers pas concrets possibles",
+                "Explorer ce que cette question révèle de vos valeurs"
+            ],
+            22: [
+                "Lister vos ressources créatives disponibles",
+                "Transformer cette contrainte en opportunité",
+                "Identifier les apprentissages cachés dans ce défi"
+            ],
+            14: [
+                "Clarifier les limites qui demandent à être respectées",
+                "Transformer cette énergie en action constructive",
+                "Exprimer vos besoins de façon assertive"
+            ],
+            32: [
+                "Identifier à qui cette vérité a besoin d'être dite",
+                "Préparer un espace sûr pour cette expression",
+                "Explorer l'impact libérateur de votre authenticité"
+            ],
+            58: [
+                "Créer des ponts entre les parties en conflit",
+                "Développer votre capacité d'écoute empathique",
+                "Identifier les besoins communs derrière les tensions"
+            ],
+            64: [
+                "Faire confiance à votre intuition du changement",
+                "Préparer intérieurement les nouvelles ouvertures",
+                "Cultiver l'art de naviguer dans l'incertitude"
+            ],
+            1: [
+                "Cultiver cette qualité de présence dans le quotidien",
+                "Explorer ce que révèle cette pause consciente",
+                "Développer votre capacité d'écoute intérieure"
+            ]
+        }
+        
+        return suggestions_by_state.get(detected_state, suggestions_by_state[1])
+
+# Intégration avec le système principal
+def generate_enhanced_response(message: str, detected_state: int, previous_states: List[int] = None, context: Dict = None) -> Dict[str, any]:
+    """Fonction principale pour générer une réponse enrichie"""
+    
+    generator = DeepResponseGenerator()
+    previous_states = previous_states or []
+    
+    # Générer la réponse approfondie
+    deep_response = generator.generate_deep_response(message, detected_state, context)
+    
+    # Analyser la constellation si applicable
+    constellation = generator.generate_constellation_response(detected_state, previous_states)
+    
+    # Générer les suggestions de suivi
+    suggestions = generator.generate_follow_up_suggestions(detected_state, message)
+    
+    return {
+        "main_response": deep_response["response_text"],
+        "deepening_questions": deep_response["deepening_questions"],
+        "wisdom_insight": deep_response["wisdom_insight"],
+        "metaphor": deep_response["metaphor_used"],
+        "constellation_insight": constellation.get("constellation_insight"),
+        "suggested_explorations": suggestions[:2],  # Limiter à 2 suggestions
+        "detected_themes": deep_response["detected_themes"],
+        "response_depth": "enhanced",
+        "therapeutic_orientation": _get_therapeutic_orientation(detected_state)
+    }
+
+def _get_therapeutic_orientation(state: int) -> str:
+    """Retourne l'orientation thérapeutique suggérée"""
+    orientations = {
+        45: "Accompagnement empathique de la vulnérabilité",
+        7: "Facilitation de l'exploration et de la découverte", 
+        22: "Soutien à la résolution créative de problèmes",
+        14: "Transformation constructive de l'énergie émotionnelle",
+        32: "Libération de l'expression authentique",
+        58: "Médiation et facilitation relationnelle",
+        64: "Accompagnement des transitions et du changement",
+        1: "Cultivation de la présence et de l'écoute intérieure"
+    }
+    
+    return orientations.get(state, orientations[1])
+
+# Test du système de réponses approfondies
+if __name__ == "__main__":
+    generator = DeepResponseGenerator()
+    
+    test_cases = [
+        ("Je me sens vraiment triste aujourd'hui, j'ai l'impression que rien ne va", 45),
+        ("Comment est-ce que je peux changer ma situation professionnelle ?", 7),
+        ("Mon ordinateur est encore en panne, ça m'énerve", 22),
+        ("Je suis furieux contre mon patron, il ne respecte jamais mes limites", 14)
+    ]
+    
+    print("🧪 Test du moteur de réponses approfondies FlowMe")
+    print("=" * 60)
+    
+    for message, expected_state in test_cases:
+        print(f"\n📝 Message: '{message}'")
+        print(f"🎯 État: {expected_state}")
+        
+        response = generate_enhanced_response(message, expected_state, [1], {})
+        
+        print(f"💬 Réponse principale:")
+        print(f"   {response['main_response'][:100]}...")
+        print(f"🤔 Questions d'approfondissement:")
+        for q in response['deepening_questions']:
+            print(f"   • {q}")
+        print(f"💡 Insight: {response['wisdom_insight']}")
+        print(f"🌱 Orientation: {response['therapeutic_orientation']}")
+        print("-" * 40)
+    
+    print("\n✅ Tests terminés - Réponses approfondies générées")
