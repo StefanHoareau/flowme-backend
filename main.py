@@ -1,3 +1,9 @@
+# main.py - VERSION CORRIGÉE pour résoudre l'erreur de syntaxe
+"""
+FlowMe Backend v3 - Architecture Éthique
+Version corrigée sans erreurs de syntaxe
+"""
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -10,7 +16,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import asyncio
 
-# Import du module de détection des états FlowMe corrigé
+# Import du module de détection des états FlowMe
 try:
     from flowme_states_detection import (
         detect_flowme_state, 
@@ -24,17 +30,32 @@ try:
     )
     print("✅ Module FlowMe States Detection importé avec succès")
 except ImportError as e:
-    print(f"⚠️  Erreur import flowme_states_detection: {e}")
-    # Module de fallback simplifié
+    print(f"⚠️  Import partiel flowme_states_detection: {e}")
+    # Fallback vers des fonctions simples
     def detect_flowme_state(message, context=None):
         return 1
     def get_state_advice(state_id, message, context=None):
         return "Je suis à votre écoute."
     def get_state_info(state_id):
-        return {"id": 1, "name": "Présence", "famille_symbolique": "Écoute subtile"}
+        return {
+            "id": state_id,
+            "name": "Présence",
+            "famille_symbolique": "Écoute subtile",
+            "mot_cle": "Présence consciente",
+            "tension_dominante": "silence/action",
+            "posture_adaptative": "J'accueille avec attention",
+            "etats_compatibles": [8, 32, 45, 58, 64]
+        }
     def analyze_message_flow(message, previous_states=None):
-        return {"detected_state": 1, "advice": "Je vous écoute."}
-    FLOWME_STATES = {1: {"name": "Présence"}}
+        return {
+            "detected_state": 1,
+            "state_info": get_state_info(1),
+            "advice": "Je vous écoute attentivement.",
+            "flow_tendency": "stable",
+            "message_analysis": {"longueur": len(message)},
+            "recommendations": []
+        }
+    FLOWME_STATES = {1: {"name": "Présence", "famille_symbolique": "Écoute subtile"}}
     FAMILLE_SYMBOLIQUE = {"Écoute subtile": {"description": "État d'écoute"}}
 
 app = FastAPI(
@@ -66,13 +87,13 @@ BACKEND_URL = os.getenv("RENDER_EXTERNAL_URL", "https://flowme-backend.onrender.
 class AnalyzeRequest(BaseModel):
     message: str
     user_id: Optional[str] = "anonymous"
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[dict] = None
     session_history: Optional[List[int]] = None
 
 class TransitionRequest(BaseModel):
     current_state: int
     desired_outcome: str
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[dict] = None
 
 class FlowAnalysisRequest(BaseModel):
     message: str
@@ -85,7 +106,7 @@ active_sessions = {}
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Page d'accueil avec présentation de l'architecture FlowMe"""
-    return f"""
+    return """
     <!DOCTYPE html>
     <html lang="fr">
         <head>
@@ -93,24 +114,24 @@ async def root():
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-                body {{ 
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     min-height: 100vh;
                     color: white;
                     line-height: 1.6;
-                }}
-                .container {{ max-width: 1200px; margin: 0 auto; padding: 2rem; }}
-                .hero {{ text-align: center; margin-bottom: 3rem; }}
-                .hero h1 {{ font-size: 3.5rem; margin-bottom: 1rem; font-weight: 300; }}
-                .hero .subtitle {{ font-size: 1.4rem; opacity: 0.9; margin-bottom: 2rem; }}
-                .description {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; margin-bottom: 3rem; }}
-                .features {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 3rem; }}
-                .feature {{ background: rgba(255,255,255,0.1); border-radius: 15px; padding: 1.5rem; }}
-                .feature h3 {{ color: #ffd700; margin-bottom: 1rem; }}
-                .actions {{ text-align: center; }}
-                .btn {{ 
+                }
+                .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+                .hero { text-align: center; margin-bottom: 3rem; }
+                .hero h1 { font-size: 3.5rem; margin-bottom: 1rem; font-weight: 300; }
+                .hero .subtitle { font-size: 1.4rem; opacity: 0.9; margin-bottom: 2rem; }
+                .description { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; margin-bottom: 3rem; }
+                .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 3rem; }
+                .feature { background: rgba(255,255,255,0.1); border-radius: 15px; padding: 1.5rem; }
+                .feature h3 { color: #ffd700; margin-bottom: 1rem; }
+                .actions { text-align: center; }
+                .btn { 
                     display: inline-block; 
                     padding: 15px 30px; 
                     background: white; 
@@ -121,13 +142,13 @@ async def root():
                     margin: 10px;
                     transition: all 0.3s ease;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                }}
-                .btn:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }}
-                .btn.secondary {{ background: transparent; border: 2px solid white; color: white; }}
-                .stats {{ display: flex; justify-content: center; gap: 3rem; margin: 2rem 0; }}
-                .stat {{ text-align: center; }}
-                .stat .number {{ font-size: 2.5rem; font-weight: bold; color: #ffd700; }}
-                .stat .label {{ font-size: 0.9rem; opacity: 0.8; }}
+                }
+                .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+                .btn.secondary { background: transparent; border: 2px solid white; color: white; }
+                .stats { display: flex; justify-content: center; gap: 3rem; margin: 2rem 0; }
+                .stat { text-align: center; }
+                .stat .number { font-size: 2.5rem; font-weight: bold; color: #ffd700; }
+                .stat .label { font-size: 0.9rem; opacity: 0.8; }
             </style>
         </head>
         <body>
@@ -655,7 +676,7 @@ def get_enhanced_default_interface():
     </html>
     """
 
-# Endpoints API CORRIGÉS
+# Endpoints API CORRIGÉS avec parenthèses équilibrées
 
 @app.post("/analyze")
 async def analyze_message(request: AnalyzeRequest):
@@ -666,7 +687,7 @@ async def analyze_message(request: AnalyzeRequest):
             raise HTTPException(status_code=400, detail="Message vide")
         
         # Construire le contexte
-        context = request.context or {{}}
+        context = request.context or {}
         if request.session_history:
             context["etat_precedent"] = request.session_history[-1]
         
@@ -678,42 +699,42 @@ async def analyze_message(request: AnalyzeRequest):
         advice = get_state_advice(detected_state, request.message, context)
         
         # Sauvegarder en base si configuré
-        save_data = {{
+        save_data = {
             "message": request.message,
             "detected_state": detected_state,
             "state_name": state_info.get("name", "Inconnu"),
             "user_id": request.user_id,
             "timestamp": datetime.now().isoformat(),
             "advice_given": advice[:200] + "..." if len(advice) > 200 else advice
-        }}
+        }
         
         if NOCODB_TOKEN and TABLE_ID:
             try:
                 await save_to_nocodb(save_data)
             except Exception as db_error:
-                print(f"Erreur NocoDB (non critique): {{db_error}}")
+                print(f"Erreur NocoDB (non critique): {db_error}")
         
-        return {{
+        return {
             "status": "success",
             "detected_state": detected_state,
-            "state_info": {{
+            "state_info": {
                 "name": state_info.get("name", "Présence"),
                 "famille_symbolique": state_info.get("famille_symbolique", "Écoute subtile"),
                 "mot_cle": state_info.get("mot_cle", "Présence consciente"),
                 "tension_dominante": state_info.get("tension_dominante", "équilibre"),
                 "posture_adaptative": state_info.get("posture_adaptative", "J'accueille avec attention"),
                 "etats_compatibles": state_info.get("etats_compatibles", [8, 32, 45, 58])
-            }},
+            },
             "advice": advice,
             "timestamp": save_data["timestamp"],
             "user_id": request.user_id
-        }}
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erreur dans analyze_message: {{e}}")
-        raise HTTPException(status_code=500, detail=f"Erreur d'analyse: {{str(e)}}")
+        print(f"Erreur dans analyze_message: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur d'analyse: {str(e)}")
 
 @app.post("/analyze/enhanced")
 async def analyze_message_enhanced(request: FlowAnalysisRequest):
@@ -729,22 +750,22 @@ async def analyze_message_enhanced(request: FlowAnalysisRequest):
             previous_states=request.previous_states or []
         )
         
-        return {{
+        return {
             "status": "success",
             "detected_state": analysis["detected_state"],
             "state_info": analysis["state_info"],
             "advice": analysis["advice"],
             "flow_tendency": analysis.get("flow_tendency", "stable"),
-            "message_analysis": analysis.get("message_analysis", {{}},
+            "message_analysis": analysis.get("message_analysis", {}),
             "recommendations": analysis.get("recommendations", []),
             "timestamp": datetime.now().isoformat()
-        }}
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erreur dans analyze_message_enhanced: {{e}}")
-        raise HTTPException(status_code=500, detail=f"Erreur d'analyse avancée: {{str(e)}}")
+        print(f"Erreur dans analyze_message_enhanced: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur d'analyse avancée: {str(e)}")
 
 @app.post("/transition")
 async def suggest_state_transition(request: TransitionRequest):
@@ -755,21 +776,21 @@ async def suggest_state_transition(request: TransitionRequest):
             desired_outcome=request.desired_outcome
         )
         
-        return {{
+        return {
             "status": "success",
             "transition_analysis": transition_data,
             "timestamp": datetime.now().isoformat()
-        }}
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur de transition: {{str(e)}}")
+        raise HTTPException(status_code=500, detail=f"Erreur de transition: {str(e)}")
 
 @app.get("/states")
 async def get_all_states():
     """Retourner tous les états FlowMe avec leurs informations"""
     try:
         states_list = []
-        families_summary = {{}}
+        families_summary = {}
         
         for state_id in range(1, 65):
             if state_id in FLOWME_STATES:
@@ -780,18 +801,18 @@ async def get_all_states():
                 famille = state_info.get("famille_symbolique", "Inconnu")
                 families_summary[famille] = families_summary.get(famille, 0) + 1
         
-        return {{
+        return {
             "status": "success",
             "total_states": len(states_list),
             "states": states_list,
             "families_summary": families_summary,
             "philosophical_foundation": "Architecture éthique de Stefan Hoareau - Le réel est changement"
-        }}
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur: {{str(e)}}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
-@app.get("/states/{{state_id}}")
+@app.get("/states/{state_id}")
 async def get_single_state(state_id: int):
     """Retourner les détails complets d'un état spécifique"""
     try:
@@ -805,59 +826,59 @@ async def get_single_state(state_id: int):
         compatible_details = []
         for comp_id in compatible_states:
             comp_info = get_state_info(comp_id)
-            compatible_details.append({{
+            compatible_details.append({
                 "id": comp_id,
-                "name": comp_info.get("name", f"État {{comp_id}}"),
+                "name": comp_info.get("name", f"État {comp_id}"),
                 "famille_symbolique": comp_info.get("famille_symbolique", "Inconnu")
-            }})
+            })
         
         famille_name = state_info.get("famille_symbolique", "Inconnu")
-        famille_info = FAMILLE_SYMBOLIQUE.get(famille_name, {{}})
+        famille_info = FAMILLE_SYMBOLIQUE.get(famille_name, {})
         
-        return {{
+        return {
             "status": "success",
             "state": state_info,
             "compatible_states": compatible_details,
             "famille_info": famille_info,
             "timestamp": datetime.now().isoformat()
-        }}
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur: {{str(e)}}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 @app.get("/families")
 async def get_families_info():
     """Retourner les informations sur les 6 familles symboliques"""
     try:
-        families_with_states = {{}}
+        families_with_states = {}
         
         for famille_name, famille_info in FAMILLE_SYMBOLIQUE.items():
             # Trouver les états de cette famille
             family_states = []
             for state_id, state_data in FLOWME_STATES.items():
                 if state_data.get("famille_symbolique") == famille_name:
-                    family_states.append({{
+                    family_states.append({
                         "id": state_id,
-                        "name": state_data.get("name", f"État {{state_id}}"),
+                        "name": state_data.get("name", f"État {state_id}"),
                         "mot_cle": state_data.get("mot_cle", "")
-                    }})
+                    })
             
-            families_with_states[famille_name] = {{
+            families_with_states[famille_name] = {
                 **famille_info,
                 "states": sorted(family_states, key=lambda x: x["id"]),
                 "count": len(family_states)
-            }}
+            }
         
-        return {{
+        return {
             "status": "success",
             "families": families_with_states,
             "total_families": len(families_with_states)
-        }}
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur: {{str(e)}}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 @app.get("/health")
 async def health_check():
@@ -873,40 +894,71 @@ async def health_check():
         if NOCODB_TOKEN and TABLE_ID:
             nocodb_status = "configuré"
         
-        health_data = {{
+        health_data = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
             "service": "FlowMe Backend v3",
             "version": "3.0.0",
-            "components": {{
+            "components": {
                 "flowme_detection": "✅ Opérationnel",
-                "states_loaded": f"✅ {{len(FLOWME_STATES)}} états",
-                "families_loaded": f"✅ {{len(FAMILLE_SYMBOLIQUE)}} familles",
-                "nocodb_integration": f"📊 {{nocodb_status}}",
+                "states_loaded": f"✅ {len(FLOWME_STATES)} états",
+                "families_loaded": f"✅ {len(FAMILLE_SYMBOLIQUE)} familles",
+                "nocodb_integration": f"📊 {nocodb_status}",
                 "api_endpoints": "✅ Tous fonctionnels"
-            }},
-            "test_detection": {{
+            },
+            "test_detection": {
                 "test_message": test_message,
                 "detected_state": test_state,
                 "state_name": test_state_info.get("name", "Présence")
-            }},
+            },
             "architecture": "Stefan Hoareau - Architecture éthique pour IA adaptative"
-        }}
+        }
         
         return health_data
         
     except Exception as e:
-        return {{
+        return {
             "status": "unhealthy",
             "error": str(e),
             "timestamp": datetime.now().isoformat()
-        }}
+        }
 
-async def save_to_nocodb(data: Dict[str, Any]):
+async def save_to_nocodb(data: dict):
     """Sauvegarder les données dans NocoDB de manière asynchrone"""
     if not NOCODB_TOKEN or not TABLE_ID:
         return
     
-    headers = {{
+    headers = {
         "xc-token": NOCODB_TOKEN,
-        "Content-Type": "application
+        "Content-Type": "application/json"
+    }
+    
+    url = f"{NOCODB_URL}/api/v2/tables/{TABLE_ID}/records"
+    
+    try:
+        # Utiliser requests de manière asynchrone
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None, 
+            lambda: requests.post(url, json=data, headers=headers, timeout=10)
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Erreur sauvegarde NocoDB: {e}")
+        return None
+
+# Test au démarrage
+try:
+    print(f"✅ FlowMe States chargés: {len(FLOWME_STATES)} états disponibles")
+    print(f"✅ Familles symboliques: {len(FAMILLE_SYMBOLIQUE)} familles")
+    print("🌊 Architecture éthique de Stefan Hoareau initialisée")
+except Exception as e:
+    print(f"❌ Erreur lors de l'initialisation: {e}")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🚀 Démarrage FlowMe Backend v3 sur le port {port}")
+    print(f"🌐 Interface accessible via: http://localhost:{port}/interface")
+    uvicorn.run(app, host="0.0.0.0", port=port)
