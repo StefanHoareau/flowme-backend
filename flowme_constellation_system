@@ -1,0 +1,617 @@
+# flowme_constellation_system.py - Système de constellations d'états
+"""
+Système intelligent de gestion des constellations d'états FlowMe
+qui comprend les enchaînements et les patterns émergents
+"""
+
+import networkx as nx
+import numpy as np
+from typing import Dict, List, Tuple, Optional, Set
+from dataclasses import dataclass
+from enum import Enum
+import json
+
+class ConstellationType(Enum):
+    SPIRAL = "spiral"  # Approfondissement progressif
+    BRIDGE = "bridge"  # Connexion entre familles
+    CYCLE = "cycle"    # Retour cyclique 
+    EXPANSION = "expansion"  # Exploration large
+    CONVERGENCE = "convergence"  # Focalisation
+    EMERGENCE = "emergence"  # Nouveauté spontanée
+
+@dataclass
+class StateTransition:
+    from_state: int
+    to_state: int
+    trigger_message: str
+    emotional_intensity: float
+    timestamp: str
+    transition_quality: str  # smooth, abrupt, natural, forced
+
+@dataclass
+class Constellation:
+    states: List[int]
+    constellation_type: ConstellationType
+    central_theme: str
+    emotional_arc: str
+    wisdom_pattern: str
+    integration_level: float
+    suggested_direction: str
+
+class FlowMeConstellationSystem:
+    """Système de gestion des constellations d'états FlowMe"""
+    
+    def __init__(self):
+        # Graphe des états et leurs relations naturelles
+        self.state_graph = self._build_state_relationship_graph()
+        
+        # Familles d'états et leurs qualités
+        self.state_families = {
+            "Écoute subtile": {
+                "states": [1, 7, 8],
+                "core_quality": "réceptivité consciente",
+                "archetypal_energy": "eau - fluidité et accueil"
+            },
+            "Voix oubliées": {
+                "states": [32, 33, 34],
+                "core_quality": "expression authentique", 
+                "archetypal_energy": "air - communication et liberté"
+            },
+            "Disponibilité nue": {
+                "states": [45, 46, 64],
+                "core_quality": "ouverture vulnérable",
+                "archetypal_energy": "éther - transcendance et possibilité"
+            },
+            "Inclusion": {
+                "states": [58, 59, 60],
+                "core_quality": "rassemblement bienveillant",
+                "archetypal_energy": "terre - solidité et enracinement"
+            },
+            "Ancrage": {
+                "states": [22, 39, 40],
+                "core_quality": "action créative",
+                "archetypal_energy": "terre - concrétisation et stabilité"
+            },
+            "NatVik": {
+                "states": [14, 15, 16],
+                "core_quality": "force vitale transformatrice",
+                "archetypal_energy": "feu - élan et transformation"
+            }
+        }
+        
+        # Patterns de constellations reconnus
+        self.constellation_patterns = self._define_constellation_patterns()
+        
+        # Transitions naturelles et leurs qualités
+        self.natural_transitions = self._define_natural_transitions()
+    
+    def _build_state_relationship_graph(self) -> nx.Graph:
+        """Construit le graphe des relations entre états"""
+        G = nx.Graph()
+        
+        # Ajouter tous les états
+        for i in range(1, 65):
+            G.add_node(i)
+        
+        # Relations intra-familiales (forte affinité)
+        family_connections = [
+            [1, 7, 8],      # Écoute subtile
+            [32, 33, 34],   # Voix oubliées  
+            [45, 46, 64],   # Disponibilité nue
+            [58, 59, 60],   # Inclusion
+            [22, 39, 40],   # Ancrage
+            [14, 15, 16]    # NatVik
+        ]
+        
+        for family in family_connections:
+            for i in range(len(family)):
+                for j in range(i+1, len(family)):
+                    G.add_edge(family[i], family[j], weight=0.9, type="family")
+        
+        # Relations inter-familiales (complémentarité)
+        cross_family_edges = [
+            (1, 45, 0.8),   # Présence -> Vulnérabilité
+            (45, 32, 0.7),  # Vulnérabilité -> Expression
+            (32, 58, 0.6),  # Expression -> Inclusion
+            (7, 64, 0.8),   # Curiosité -> Ouverture
+            (22, 14, 0.5),  # Pragmatisme -> Colère (tension créative)
+            (58, 1, 0.7),   # Inclusion -> Présence (retour)
+            (14, 32, 0.6),  # Colère -> Expression
+            (39, 64, 0.5),  # Obstacles -> Ouverture
+        ]
+        
+        for state1, state2, weight in cross_family_edges:
+            G.add_edge(state1, state2, weight=weight, type="bridge")
+        
+        return G
+    
+    def _define_constellation_patterns(self) -> Dict[str, Dict]:
+        """Définit les patterns de constellations reconnus"""
+        return {
+            "healing_spiral": {
+                "pattern": [45, 32, 58, 1],  # Vulnérabilité -> Expression -> Inclusion -> Présence
+                "theme": "Processus de guérison par l'expression",
+                "archetypal_story": "De la blessure à la sagesse partagée",
+                "wisdom": "La vulnérabilité exprimée devient source de connexion authentique"
+            },
+            
+            "creative_emergence": {
+                "pattern": [7, 22, 32, 64],  # Curiosité -> Pragmatisme -> Expression -> Ouverture
+                "theme": "Émergence créative par l'action",
+                "archetypal_story": "De la question à la manifestation",
+                "wisdom": "L'action créative ouvre des possibilités insoupçonnées"
+            },
+            
+            "integration_cycle": {
+                "pattern": [1, 45, 14, 58, 1],  # Présence -> Vulnérabilité -> Colère -> Inclusion -> Présence
+                "theme": "Cycle d'intégration émotionnelle",
+                "archetypal_story": "Le voyage de l'acceptation totale",
+                "wisdom": "Chaque émotion intégrée enrichit notre présence au monde"
+            },
+            
+            "transformation_bridge": {
+                "pattern": [22, 39, 64, 32],  # Pragmatisme -> Obstacles -> Ouverture -> Expression
+                "theme": "Transformation par dépassement",
+                "archetypal_story": "L'obstacle devient la voie",
+                "wisdom": "Les défis révèlent nos capacités de métamorphose"
+            },
+            
+            "wisdom_gathering": {
+                "pattern": [8, 58, 1, 7],  # Résonance -> Inclusion -> Présence -> Curiosité
+                "theme": "Rassemblement de sagesse collective",
+                "archetypal_story": "De l'harmonie à la découverte",
+                "wisdom": "L'écoute partagée génère de nouvelles compréhensions"
+            }
+        }
+    
+    def _define_natural_transitions(self) -> Dict[Tuple[int, int], Dict]:
+        """Définit les qualités des transitions naturelles"""
+        return {
+            (1, 45): {"quality": "ouverture", "ease": 0.8, "frequency": "high"},
+            (45, 32): {"quality": "libération", "ease": 0.7, "frequency": "medium"},
+            (32, 58): {"quality": "connexion", "ease": 0.6, "frequency": "medium"},
+            (7, 64): {"quality": "expansion", "ease": 0.9, "frequency": "high"},
+            (22, 14): {"quality": "tension_créative", "ease": 0.4, "frequency": "low"},
+            (14, 32): {"quality": "canalisation", "ease": 0.6, "frequency": "medium"},
+            (58, 1): {"quality": "intégration", "ease": 0.8, "frequency": "high"},
+            (64, 22): {"quality": "concrétisation", "ease": 0.5, "frequency": "medium"},
+        }
+    
+    def analyze_constellation(self, state_sequence: List[int], messages: List[str] = None) -> Constellation:
+        """Analyse une séquence d'états pour identifier la constellation"""
+        
+        if len(state_sequence) < 3:
+            return self._create_simple_constellation(state_sequence)
+        
+        # Identifier le pattern principal
+        constellation_type = self._identify_constellation_type(state_sequence)
+        
+        # Analyser l'arc émotionnel
+        emotional_arc = self._analyze_emotional_arc(state_sequence, messages)
+        
+        # Identifier le thème central
+        central_theme = self._identify_central_theme(state_sequence)
+        
+        # Calculer le niveau d'intégration
+        integration_level = self._calculate_integration_level(state_sequence)
+        
+        # Suggérer la direction
+        suggested_direction = self._suggest_next_direction(state_sequence)
+        
+        # Identifier le pattern de sagesse
+        wisdom_pattern = self._identify_wisdom_pattern(state_sequence)
+        
+        return Constellation(
+            states=state_sequence,
+            constellation_type=constellation_type,
+            central_theme=central_theme,
+            emotional_arc=emotional_arc,
+            wisdom_pattern=wisdom_pattern,
+            integration_level=integration_level,
+            suggested_direction=suggested_direction
+        )
+    
+    def _identify_constellation_type(self, sequence: List[int]) -> ConstellationType:
+        """Identifie le type de constellation"""
+        
+        # Analyser les familles traversées
+        families_visited = []
+        for state in sequence:
+            for family, data in self.state_families.items():
+                if state in data["states"]:
+                    families_visited.append(family)
+                    break
+        
+        unique_families = len(set(families_visited))
+        
+        # Analyser les patterns de mouvement
+        if self._is_spiral_pattern(sequence):
+            return ConstellationType.SPIRAL
+        elif unique_families >= 4:
+            return ConstellationType.EXPANSION
+        elif unique_families <= 2 and len(sequence) >= 4:
+            return ConstellationType.CONVERGENCE
+        elif self._has_bridge_quality(sequence):
+            return ConstellationType.BRIDGE
+        elif self._is_cyclical(sequence):
+            return ConstellationType.CYCLE
+        else:
+            return ConstellationType.EMERGENCE
+    
+    def _is_spiral_pattern(self, sequence: List[int]) -> bool:
+        """Détecte si la séquence forme une spirale (approfondissement)"""
+        if len(sequence) < 4:
+            return False
+        
+        # Vérifier si on revient vers des états similaires mais avec plus de profondeur
+        for i in range(len(sequence) - 3):
+            current_family = self._get_state_family(sequence[i])
+            later_family = self._get_state_family(sequence[i + 3])
+            if current_family == later_family:
+                return True
+        return False
+    
+    def _has_bridge_quality(self, sequence: List[int]) -> bool:
+        """Détecte si la séquence crée des ponts entre familles"""
+        families = [self._get_state_family(state) for state in sequence]
+        unique_families = set(families)
+        
+        # Un pont connecte au moins 3 familles différentes
+        return len(unique_families) >= 3 and len(sequence) <= 6
+    
+    def _is_cyclical(self, sequence: List[int]) -> bool:
+        """Détecte si la séquence est cyclique"""
+        if len(sequence) < 4:
+            return False
+        
+        # Vérifier si on revient au point de départ ou proche
+        start_family = self._get_state_family(sequence[0])
+        end_family = self._get_state_family(sequence[-1])
+        
+        return start_family == end_family and len(set(sequence)) >= 3
+    
+    def _get_state_family(self, state: int) -> str:
+        """Retourne la famille d'un état"""
+        for family, data in self.state_families.items():
+            if state in data["states"]:
+                return family
+        return "Unknown"
+    
+    def _analyze_emotional_arc(self, sequence: List[int], messages: List[str] = None) -> str:
+        """Analyse l'arc émotionnel de la constellation"""
+        
+        # Mapper les états vers des intensités émotionnelles
+        emotional_intensities = {
+            1: 0.3,   # Présence - calme
+            7: 0.5,   # Curiosité - modérée
+            8: 0.4,   # Résonance - harmonieuse
+            14: 0.9,  # Colère - intense
+            22: 0.6,  # Pragmatisme - focalisée
+            32: 0.7,  # Expression - dynamique
+            39: 0.8,  # Obstacles - tendue
+            45: 0.9,  # Vulnérabilité - intense
+            58: 0.5,  # Inclusion - apaisante
+            64: 0.6   # Ouverture - expansive
+        }
+        
+        intensities = [emotional_intensities.get(state, 0.5) for state in sequence]
+        
+        # Analyser la courbe émotionnelle
+        if len(intensities) < 3:
+            return "arc_naissant"
+        
+        start_intensity = np.mean(intensities[:2])
+        middle_intensity = np.mean(intensities[1:-1]) if len(intensities) > 2 else intensities[1]
+        end_intensity = np.mean(intensities[-2:])
+        
+        # Identifier le pattern
+        if start_intensity < middle_intensity > end_intensity:
+            return "arc_catharsis"  # Montée puis descente (libération)
+        elif start_intensity > middle_intensity < end_intensity:
+            return "arc_resilience"  # Descente puis remontée (résilience)
+        elif end_intensity > start_intensity + 0.2:
+            return "arc_crescendo"  # Montée progressive (intensification)
+        elif start_intensity > end_intensity + 0.2:
+            return "arc_apaisement"  # Descente progressive (apaisement)
+        else:
+            return "arc_exploration"  # Relativement stable (exploration)
+    
+    def _identify_central_theme(self, sequence: List[int]) -> str:
+        """Identifie le thème central de la constellation"""
+        
+        # Analyser les familles dominantes
+        family_counts = {}
+        for state in sequence:
+            family = self._get_state_family(state)
+            family_counts[family] = family_counts.get(family, 0) + 1
+        
+        dominant_family = max(family_counts, key=family_counts.get)
+        
+        # Thèmes par famille avec nuances selon les états
+        family_themes = {
+            "Écoute subtile": self._analyze_listening_theme(sequence),
+            "Voix oubliées": "Libération de l'expression authentique",
+            "Disponibilité nue": self._analyze_vulnerability_theme(sequence),
+            "Inclusion": "Rassemblement et harmonie relationnelle", 
+            "Ancrage": "Concrétisation créative et résolution",
+            "NatVik": "Transformation par la force vitale"
+        }
+        
+        return family_themes.get(dominant_family, "Exploration multidimensionnelle")
+    
+    def _analyze_listening_theme(self, sequence: List[int]) -> str:
+        """Analyse spécifique pour les thèmes d'écoute"""
+        if 7 in sequence and 1 in sequence:
+            return "Dialogue entre présence et curiosité"
+        elif 8 in sequence:
+            return "Développement de la résonance empathique"
+        else:
+            return "Cultivation de l'attention consciente"
+    
+    def _analyze_vulnerability_theme(self, sequence: List[int]) -> str:
+        """Analyse spécifique pour les thèmes de vulnérabilité"""
+        if 45 in sequence and 32 in sequence:
+            return "Transformation de la vulnérabilité en expression"
+        elif 64 in sequence:
+            return "Ouverture aux possibilités infinies"
+        else:
+            return "Exploration de la disponibilité authentique"
+    
+    def _calculate_integration_level(self, sequence: List[int]) -> float:
+        """Calcule le niveau d'intégration de la constellation"""
+        
+        # Facteurs d'intégration
+        factors = []
+        
+        # 1. Diversité des familles (0-1)
+        unique_families = len(set(self._get_state_family(state) for state in sequence))
+        diversity_score = min(unique_families / 6.0, 1.0)
+        factors.append(diversity_score)
+        
+        # 2. Fluidité des transitions (0-1)
+        transition_scores = []
+        for i in range(len(sequence) - 1):
+            transition = (sequence[i], sequence[i + 1])
+            if transition in self.natural_transitions:
+                transition_scores.append(self.natural_transitions[transition]["ease"])
+            else:
+                # Calculer distance dans le graphe
+                try:
+                    path_length = nx.shortest_path_length(self.state_graph, sequence[i], sequence[i + 1])
+                    transition_scores.append(max(0, 1 - (path_length - 1) * 0.2))
+                except:
+                    transition_scores.append(0.3)  # Transition difficile
+        
+        fluidity_score = np.mean(transition_scores) if transition_scores else 0.5
+        factors.append(fluidity_score)
+        
+        # 3. Cohérence thématique (0-1)
+        coherence_score = self._calculate_thematic_coherence(sequence)
+        factors.append(coherence_score)
+        
+        # 4. Profondeur (longueur ajustée) (0-1)
+        depth_score = min(len(sequence) / 8.0, 1.0)
+        factors.append(depth_score)
+        
+        # Moyenne pondérée
+        weights = [0.3, 0.3, 0.25, 0.15]
+        integration_level = sum(f * w for f, w in zip(factors, weights))
+        
+        return round(integration_level, 2)
+    
+    def _calculate_thematic_coherence(self, sequence: List[int]) -> float:
+        """Calcule la cohérence thématique de la séquence"""
+        
+        # Vérifier si la séquence suit un pattern reconnu
+        for pattern_name, pattern_data in self.constellation_patterns.items():
+            pattern = pattern_data["pattern"]
+            
+            # Vérification exacte
+            if sequence == pattern:
+                return 1.0
+            
+            # Vérification partielle (sous-séquence)
+            if len(sequence) >= 3:
+                for i in range(len(sequence) - 2):
+                    subseq = sequence[i:i+3]
+                    if subseq == pattern[:3] or subseq == pattern[-3:]:
+                        return 0.8
+        
+        # Vérifier la cohérence par proximité des états
+        proximity_scores = []
+        for i in range(len(sequence) - 1):
+            if self.state_graph.has_edge(sequence[i], sequence[i + 1]):
+                edge_data = self.state_graph[sequence[i]][sequence[i + 1]]
+                proximity_scores.append(edge_data.get('weight', 0.5))
+            else:
+                proximity_scores.append(0.2)
+        
+        return np.mean(proximity_scores) if proximity_scores else 0.4
+    
+    def _suggest_next_direction(self, sequence: List[int]) -> str:
+        """Suggère la direction suivante pour la constellation"""
+        
+        current_state = sequence[-1]
+        constellation_type = self._identify_constellation_type(sequence)
+        
+        # Suggestions basées sur le type de constellation
+        if constellation_type == ConstellationType.SPIRAL:
+            return "Approfondissement de l'état actuel ou intégration des insights"
+        
+        elif constellation_type == ConstellationType.EXPANSION:
+            return "Convergence vers une synthèse ou ancrage pratique"
+        
+        elif constellation_type == ConstellationType.CONVERGENCE:
+            return "Ouverture à de nouvelles dimensions ou expression créative"
+        
+        elif constellation_type == ConstellationType.BRIDGE:
+            return "Exploration des connexions émergentes entre les domaines"
+        
+        elif constellation_type == ConstellationType.CYCLE:
+            return "Intégration des apprentissages du cycle ou nouvelle spirale"
+        
+        else:  # EMERGENCE
+            return "Laisser émerger ce qui veut naître naturellement"
+    
+    def _identify_wisdom_pattern(self, sequence: List[int]) -> str:
+        """Identifie le pattern de sagesse émergent"""
+        
+        # Vérifier les patterns reconnus
+        for pattern_name, pattern_data in self.constellation_patterns.items():
+            pattern = pattern_data["pattern"]
+            
+            # Correspondance exacte ou partielle
+            if self._sequence_matches_pattern(sequence, pattern):
+                return pattern_data["wisdom"]
+        
+        # Générer une sagesse basée sur les familles traversées
+        families = [self._get_state_family(state) for state in sequence]
+        unique_families = list(set(families))
+        
+        if len(unique_families) == 1:
+            family_wisdom = {
+                "Écoute subtile": "L'écoute profonde révèle la sagesse silencieuse du moment présent",
+                "Voix oubliées": "L'expression authentique libère et transforme",
+                "Disponibilité nue": "Dans l'ouverture vulnérable naît la vraie force",
+                "Inclusion": "L'harmonie naît de l'accueil de toutes les parties",
+                "Ancrage": "L'action créative manifeste l'invisible dans le visible",
+                "NatVik": "La force vitale transforme tous les obstacles en opportunités"
+            }
+            return family_wisdom.get(unique_families[0], "Chaque expérience porte sa propre sagesse")
+        
+        else:
+            return "L'intégration de multiples dimensions révèle la richesse de l'expérience humaine"
+    
+    def _sequence_matches_pattern(self, sequence: List[int], pattern: List[int], threshold: float = 0.7) -> bool:
+        """Vérifie si une séquence correspond à un pattern"""
+        
+        if not sequence or not pattern:
+            return False
+        
+        # Correspondance exacte
+        if sequence == pattern:
+            return True
+        
+        # Correspondance partielle si assez longue
+        if len(sequence) >= 3:
+            matches = sum(1 for i, state in enumerate(sequence) 
+                         if i < len(pattern) and state == pattern[i])
+            return (matches / len(sequence)) >= threshold
+        
+        return False
+    
+    def _create_simple_constellation(self, sequence: List[int]) -> Constellation:
+        """Crée une constellation simple pour des séquences courtes"""
+        
+        if not sequence:
+            return Constellation(
+                states=[1],
+                constellation_type=ConstellationType.EMERGENCE,
+                central_theme="Point de départ",
+                emotional_arc="arc_naissant",
+                wisdom_pattern="Chaque voyage commence par un premier pas",
+                integration_level=0.3,
+                suggested_direction="Explorer authentiquement"
+            )
+        
+        current_state = sequence[-1]
+        family = self._get_state_family(current_state)
+        
+        return Constellation(
+            states=sequence,
+            constellation_type=ConstellationType.EMERGENCE,
+            central_theme=f"Exploration de {family.lower()}",
+            emotional_arc="arc_naissant",
+            wisdom_pattern=f"L'essence de {family.lower()} se révèle progressivement",
+            integration_level=0.4,
+            suggested_direction="Continuer l'exploration avec curiosité"
+        )
+    
+    def generate_constellation_insight(self, constellation: Constellation) -> str:
+        """Génère un insight poétique sur la constellation"""
+        
+        type_metaphors = {
+            ConstellationType.SPIRAL: "comme une spirale d'éveil qui approfondit à chaque tour",
+            ConstellationType.BRIDGE: "tel un pont gracieux reliant des territoires de l'âme",
+            ConstellationType.CYCLE: "à la manière d'un cycle naturel qui revient enrichi",
+            ConstellationType.EXPANSION: "comme un souffle qui s'élargit vers de nouveaux horizons", 
+            ConstellationType.CONVERGENCE: "tel un fleuve qui rassemble ses affluents",
+            ConstellationType.EMERGENCE: "comme une graine mystérieuse qui révèle sa nature"
+        }
+        
+        metaphor = type_metaphors[constellation.constellation_type]
+        
+        integration_qualifiers = {
+            0.0: "naissante", 0.3: "en formation", 0.5: "équilibrée",
+            0.7: "harmonieuse", 0.9: "profondément intégrée"
+        }
+        
+        integration_level = max(k for k in integration_qualifiers.keys() 
+                               if k <= constellation.integration_level)
+        integration_quality = integration_qualifiers[integration_level]
+        
+        return f"""Votre constellation se déploie {metaphor}, 
+révélant une dynamique {integration_quality} autour du thème : {constellation.central_theme}.
+
+{constellation.wisdom_pattern}
+
+Direction émergente : {constellation.suggested_direction}"""
+
+# Intégration avec FlowMe principal
+def analyze_user_constellation(state_history: List[int], message_history: List[str] = None) -> Dict[str, any]:
+    """Fonction principale d'analyse de constellation utilisateur"""
+    
+    if len(state_history) < 2:
+        return {"constellation": None, "insight": "Constellation en formation..."}
+    
+    system = FlowMeConstellationSystem()
+    constellation = system.analyze_constellation(state_history, message_history)
+    insight = system.generate_constellation_insight(constellation)
+    
+    return {
+        "constellation": {
+            "type": constellation.constellation_type.value,
+            "theme": constellation.central_theme,
+            "emotional_arc": constellation.emotional_arc,
+            "integration_level": constellation.integration_level,
+            "wisdom_pattern": constellation.wisdom_pattern,
+            "suggested_direction": constellation.suggested_direction
+        },
+        "insight": insight,
+        "states_explored": len(set(state_history)),
+        "families_visited": len(set(system._get_state_family(state) for state in state_history)),
+        "depth_indicator": len(state_history)
+    }
+
+# Test du système
+if __name__ == "__main__":
+    system = FlowMeConstellationSystem()
+    
+    # Test avec différents patterns
+    test_sequences = [
+        [1, 45, 32, 58],      # Pattern de guérison
+        [7, 22, 64, 32],      # Pattern créatif
+        [1, 7, 1, 8, 1],      # Pattern spiral d'écoute
+        [14, 32, 45, 58, 1],  # Pattern d'intégration émotionnelle
+    ]
+    
+    print("🌌 Test du système de constellations FlowMe")
+    print("=" * 60)
+    
+    for i, sequence in enumerate(test_sequences, 1):
+        print(f"\n🔮 Test {i}: {sequence}")
+        
+        constellation = system.analyze_constellation(sequence)
+        insight = system.generate_constellation_insight(constellation)
+        
+        print(f"Type: {constellation.constellation_type.value}")
+        print(f"Thème: {constellation.central_theme}")
+        print(f"Arc émotionnel: {constellation.emotional_arc}")
+        print(f"Intégration: {constellation.integration_level}")
+        print(f"Sagesse: {constellation.wisdom_pattern}")
+        print(f"Direction: {constellation.suggested_direction}")
+        print(f"\n💫 Insight:")
+        print(insight)
+        print("-" * 40)
+    
+    print("\n✨ Système de constellations opérationnel")
