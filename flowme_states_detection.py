@@ -1,11 +1,10 @@
-# Correction pour flowme_states_detection.py
-# Ajouter ces imports en haut du fichier :
-
 from typing import Optional, Dict
+import re
 
 def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -> int:
     """
     Détecte l'état de conscience FlowMe basé sur le message et le contexte.
+    Version améliorée avec gestion des contradictions et hiérarchisation.
     
     Args:
         message (str): Message à analyser
@@ -14,154 +13,164 @@ def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -
     Returns:
         int: Numéro de l'état détecté (1-64)
     """
-    # Votre logique de détection existante ici
-    pass
-    def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -> int:
-    """
-    Version améliorée de la détection qui gère mieux les cas complexes
-    """
-    if not message or not message.strip():
+    if not message or not isinstance(message, str):
+        return 1  # État par défaut
+    
+    # Nettoyer et normaliser le message
+    message_clean = message.lower().strip()
+    words = re.findall(r'\b\w+\b', message_clean)
+    
+    if not words:
         return 1
     
-    message_lower = message.lower().strip()
-    context = context or {}
+    # Dictionnaire des mots-clés pour chaque état (version étendue)
+    state_keywords = {
+        # États de Violence/Conflit (priorité haute)
+        32: ["despotisme", "carnage", "violence", "guerre", "haine", "destruction", "massacre", 
+             "tyrannie", "oppression", "brutalité", "sauvagerie", "barbarie"],
+        
+        14: ["colère", "rage", "fureur", "révolte", "indignation", "combat", "lutte", 
+             "résistance", "protestation"],
+        
+        # États d'Inclusion/Intégration (pour contradictions)
+        58: ["paradoxe", "contradiction", "ensemble", "inclusion", "intégration", "unité",
+             "synthèse", "réconciliation"],
+        
+        # États Positifs/Harmonieux
+        8: ["résonance", "harmonie", "écoute", "subtil", "connexion", "accord", "paix"],
+        
+        1: ["émerveillement", "surprise", "découverte", "nouveauté", "étonnement"],
+        
+        16: ["amour", "affection", "tendresse", "compassion", "bienveillance", "cœur"],
+        
+        22: ["joie", "bonheur", "gaieté", "euphorie", "allégresse", "félicité"],
+        
+        # États Neutres/Réflectifs  
+        40: ["réflexion", "pensée", "analyse", "méditation", "contemplation"],
+        
+        # Mots de liaison faibles (ne déclenchent pas automatiquement un état)
+        "weak": ["bien", "bon", "très", "assez", "plutôt", "vraiment", "tout", "ça", "cela"]
+    }
     
-    # === DÉTECTION PRIORITAIRE DES MOTS FORTS ===
-    
-    # Mots de violence/conflit (priorité haute)
-    violence_words = ["carnage", "despotisme", "guerre", "tuer", "détruire", "haïr", "violence"]
-    if any(word in message_lower for word in violence_words):
-        # Si violence + autres éléments → Expression/Colère
-        if any(word in message_lower for word in ["disputé", "énervé", "marre"]):
-            return 14  # Colère Constructive
-        else:
-            return 32  # Expression Libre (besoin d'exprimer des choses fortes)
-    
-    # Mots de souffrance (priorité haute)
-    suffering_words = ["triste", "mal", "souffre", "douleur", "blessé", "cassé"]
-    if any(word in message_lower for word in suffering_words):
-        return 45  # Vulnérabilité Assumée
-    
-    # === DÉTECTION PAR COMBINAISONS ===
-    
-    # Messages contradictoires (amour + violence)
-    love_words = ["amour", "compassion", "tendresse", "douceur"]
-    has_love = any(word in message_lower for word in love_words)
-    has_violence = any(word in message_lower for word in violence_words)
-    
-    if has_love and has_violence:
-        return 58  # Inclusion Bienveillante (intégration des opposés)
-    
-    # === DÉTECTION NORMALE PAR MOTS-CLÉS ===
-    
+    # Scores pour chaque état
     state_scores = {}
+    detected_words = {"strong": [], "weak": []}
     
-    for state_id, state_data in FLOWME_STATES.items():
-        score = 0
-        keywords_found = []
+    # Analyser chaque mot
+    for word in words:
+        word_found = False
         
-        # Vérifier les mots-clés
-        for keyword in state_data["keywords"]:
-            if keyword in message_lower:
-                score += 2
-                keywords_found.append(keyword)
+        # Vérifier les mots forts (états spécifiques)
+        for state_id, keywords in state_keywords.items():
+            if isinstance(state_id, int) and word in keywords:
+                if state_id not in state_scores:
+                    state_scores[state_id] = 0
+                state_scores[state_id] += 1
+                detected_words["strong"].append((word, state_id))
+                word_found = True
+                break
         
-        # Bonus contextuel
-        if keywords_found:
-            if len(message.split()) <= 5:
-                score += 1
-            
-            emotional_states = [45, 14, 32]
-            if state_id in emotional_states and any(word in message_lower for word in ["triste", "disputé", "cassé", "énervé", "mal"]):
-                score += 3
+        # Vérifier les mots faibles
+        if not word_found and word in state_keywords.get("weak", []):
+            detected_words["weak"].append(word)
+    
+    # Logique de décision améliorée
+    if state_scores:
+        # Détecter les contradictions (mots de violence + mots d'amour)
+        has_violence = any(state_id in [32, 14] for state_id in state_scores.keys())
+        has_love = any(state_id in [16, 8, 22] for state_id in state_scores.keys())
         
-        state_scores[state_id] = score
-    
-    # Trouver le meilleur état
-    if state_scores and max(state_scores.values()) > 0:
-        best_state = max(state_scores, key=state_scores.get)
-        return best_state
-    
-    # === FALLBACKS AMÉLIORÉS ===
-    
-    # Questions
-    if any(word in message_lower for word in ["?", "pourquoi", "comment", "qu'est-ce"]):
-        return 7  # Curiosité
-    
-    # Gratitude pure (sans ambiguïté)
-    if any(word in message_lower for word in ["merci", "gratitude", "reconnaissance"]) and not has_violence:
-        return 8  # Résonance
-    
-    # Mots positifs simples (sans violence)
-    if any(word in message_lower for word in ["bien", "super", "génial"]) and not has_violence:
-        return 8  # Résonance
-    
-    # Changement/possibilité
-    if any(word in message_lower for word in ["changer", "possible", "peut", "nouveau"]):
-        return 64  # Porte Ouverte
-    
-    # Défaut sécurisé
-    return 1  # Présence
-
-
-# === MOTS-CLÉS ÉTENDUS POUR CHAQUE ÉTAT ===
-
-EXTENDED_KEYWORDS = {
-    14: ["énervé", "colère", "furieux", "marre", "agacé", "dispute", "violence", "carnage", "guerre", "révoltant"],
-    32: ["dire", "exprimer", "parler", "voix", "crier", "disputé", "proclamer", "déclarer", "révéler"],
-    45: ["triste", "mal", "souffre", "difficile", "cassé", "blessé", "peur", "vulnérable", "fragile"],
-    58: ["aide", "soutien", "ensemble", "famille", "couple", "relation", "amour", "compassion", "inclusion"],
-    22: ["cassé", "réparer", "solution", "pratique", "faire", "lacet", "problème", "résoudre"],
-    7: ["pourquoi", "comment", "qu'est-ce", "changer", "curieux", "comprendre", "explorer"],
-    8: ["merci", "gratitude", "reconnaissance", "ensemble", "comprends", "harmonie", "bien"],
-    64: ["possible", "nouveau", "changer", "espoir", "avenir", "peut", "transformation"],
-    1: ["bonjour", "salut", "hello", "présence", "écoute", "attention", "silence"]
-}
-
-def test_improved_detection():
-    """Test avec le message problématique"""
-    
-    test_cases = [
-        ("Amour, Compassion, Despotisme, Carnage, cela me plaît bien !", "Devrait être État 58 (Inclusion) ou 32 (Expression)"),
-        ("je suis triste", "État 45 (Vulnérabilité)"),
-        ("comment changer", "État 7 (Curiosité)"),
-        ("mon lacet est cassé", "État 22 (Pragmatisme)"),
-        ("merci beaucoup", "État 8 (Résonance)"),
-        ("je me suis disputé", "État 32 (Expression)")
-    ]
-    
-    print("🧪 Test de la détection améliorée:")
-    print("-" * 70)
-    
-    for message, expected in test_cases:
-        detected = detect_flowme_state_improved(message)
-        state_name = FLOWME_STATES[detected]["name"]
+        if has_violence and has_love:
+            # Contradiction détectée → État d'Inclusion
+            return 58
         
-        print(f"Message: '{message}'")
-        print(f"Détecté: État {detected} - {state_name}")
-        print(f"Attendu: {expected}")
-        print("-" * 40)
+        # Prioriser les états avec les scores les plus élevés
+        max_score = max(state_scores.values())
+        best_states = [state_id for state_id, score in state_scores.items() if score == max_score]
+        
+        # En cas d'égalité, prioriser les états de violence/conflit
+        priority_order = [32, 14, 58, 16, 22, 8, 1, 40]
+        for priority_state in priority_order:
+            if priority_state in best_states:
+                return priority_state
+        
+        # Retourner le premier état trouvé
+        return best_states[0]
+    
+    # Aucun mot-clé fort trouvé
+    if detected_words["weak"]:
+        # Mots faibles seulement → État neutre de réflexion
+        return 40
+    
+    # Aucun mot reconnu → État d'émerveillement par défaut
+    return 1
 
-# Test spécifique pour le message problématique
-def analyze_problematic_message():
-    """Analyse détaillée du message problématique"""
-    message = "Amour, Compassion, Despotisme, Carnage, cela me plaît bien !"
+
+def get_state_description(state_id: int) -> str:
+    """
+    Retourne la description d'un état FlowMe.
     
-    print("🔍 Analyse du message problématique:")
-    print(f"Message: '{message}'")
-    print()
+    Args:
+        state_id (int): Numéro de l'état (1-64)
     
-    # Détection actuelle
-    current_result = detect_flowme_state(message)
-    print(f"❌ Détection actuelle: État {current_result} - {FLOWME_STATES[current_result]['name']}")
+    Returns:
+        str: Description de l'état
+    """
+    descriptions = {
+        1: "Émerveillement - Ouverture à la nouveauté",
+        8: "Résonance - Écoute subtile et harmonie", 
+        14: "Colère Constructive - Transformation de l'énergie",
+        16: "Amour - Connexion du cœur",
+        22: "Joie - Célébration de la vie",
+        32: "Expression Libre - Besoin d'exprimer des choses fortes",
+        40: "Réflexion - Analyse et contemplation",
+        58: "Inclusion - Intégration des contradictions"
+    }
     
-    # Détection améliorée  
-    improved_result = detect_flowme_state_improved(message)
-    print(f"✅ Détection améliorée: État {improved_result} - {FLOWME_STATES[improved_result]['name']}")
+    return descriptions.get(state_id, f"État {state_id} - Description non disponible")
+
+
+def analyze_message_context(message: str) -> Dict:
+    """
+    Analyse le contexte émotionnel d'un message.
     
-    print()
-    print("💡 Pourquoi cette amélioration:")
-    print("- Détecte 'carnage' et 'despotisme' comme mots de violence")
-    print("- Détecte 'amour' et 'compassion' comme mots d'inclusion") 
-    print("- Combinaison violence + amour = besoin d'inclusion/intégration")
-    print("- Plus de fallback aveugle sur 'bien'")
+    Args:
+        message (str): Message à analyser
+    
+    Returns:
+        Dict: Analyse contextuelle
+    """
+    message_clean = message.lower()
+    
+    analysis = {
+        "has_violence": any(word in message_clean for word in 
+                          ["despotisme", "carnage", "violence", "guerre", "haine"]),
+        "has_love": any(word in message_clean for word in 
+                       ["amour", "compassion", "tendresse", "cœur"]),
+        "has_contradiction": False,
+        "dominant_emotion": "neutre",
+        "intensity": "faible"
+    }
+    
+    analysis["has_contradiction"] = analysis["has_violence"] and analysis["has_love"]
+    
+    # Déterminer l'émotion dominante
+    if analysis["has_contradiction"]:
+        analysis["dominant_emotion"] = "contradiction"
+        analysis["intensity"] = "forte"
+    elif analysis["has_violence"]:
+        analysis["dominant_emotion"] = "violence"
+        analysis["intensity"] = "forte"
+    elif analysis["has_love"]:
+        analysis["dominant_emotion"] = "amour"
+        analysis["intensity"] = "moyenne"
+    
+    return analysis
+
+
+# Fonction de compatibilité avec l'ancienne version
+def detect_flowme_state(message: str) -> int:
+    """
+    Version simplifiée pour compatibilité.
+    """
+    return detect_flowme_state_improved(message)
