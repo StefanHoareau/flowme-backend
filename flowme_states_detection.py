@@ -1,4 +1,22 @@
+# Correction pour flowme_states_detection.py
+# Ajouter ces imports en haut du fichier :
+
+from typing import Optional, Dict
+
 def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -> int:
+    """
+    Détecte l'état de conscience FlowMe basé sur le message et le contexte.
+    
+    Args:
+        message (str): Message à analyser
+        context (Optional[Dict]): Contexte additionnel (optionnel)
+    
+    Returns:
+        int: Numéro de l'état détecté (1-64)
+    """
+    # Votre logique de détection existante ici
+    pass
+    def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -> int:
     """
     Version améliorée de la détection qui gère mieux les cas complexes
     """
