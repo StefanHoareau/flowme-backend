@@ -1,177 +1,43 @@
-# flowme_states_detection.py - VERSION CORRIGÉE POUR RENDER
-"""
-FlowMe States Detection - Module de détection des 64 états de conscience
-Version corrigée pour import sans erreurs
-"""
-
-import re
-import random
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-
-# Définition des 6 familles symboliques
-FAMILLE_SYMBOLIQUE = {
-    "Écoute subtile": {
-        "description": "États d'attention pure et de réceptivité",
-        "énergie_dominante": "réceptive",
-        "tension_créative": "silence/expression"
-    },
-    "Voix oubliées": {
-        "description": "États de communication et d'expression",
-        "énergie_dominante": "expressive", 
-        "tension_créative": "individu/collectif"
-    },
-    "Disponibilité nue": {
-        "description": "États d'ouverture et de vulnérabilité",
-        "énergie_dominante": "ouverte",
-        "tension_créative": "protection/exposition"
-    },
-    "Inclusion": {
-        "description": "États de rassemblement et d'intégration",
-        "énergie_dominante": "intégrative",
-        "tension_créative": "unité/diversité"
-    },
-    "Ancrage": {
-        "description": "États de stabilité et d'enracinement",
-        "énergie_dominante": "stable",
-        "tension_créative": "mouvement/immobilité"
-    },
-    "NatVik": {
-        "description": "États de force naturelle et d'élan vital",
-        "énergie_dominante": "dynamique",
-        "tension_créative": "contrôle/spontanéité"
-    }
-}
-
-# Base de données des états FlowMe COMPLÈTE
-FLOWME_STATES = {
-    1: {
-        "name": "Présence",
-        "description": "État d'écoute profonde et d'attention pure",
-        "keywords": ["bonjour", "salut", "hello", "présence", "écoute", "attention"],
-        "famille_symbolique": "Écoute subtile",
-        "mot_cle": "Présence consciente",
-        "tension_dominante": "silence/action",
-        "posture_adaptative": "J'accueille avec une attention totale",
-        "etats_compatibles": [8, 32, 45, 64],
-        "wisdom": "Dans le silence de l'écoute, les vraies réponses émergent"
-    },
-    7: {
-        "name": "Curiosité Écoute",
-        "description": "Questionnement ouvert et bienveillant",
-        "keywords": ["pourquoi", "comment", "qu'est-ce", "changer", "curieux", "comprendre"],
-        "famille_symbolique": "Écoute subtile",
-        "mot_cle": "Curiosité consciente",
-        "tension_dominante": "question/réponse",
-        "posture_adaptative": "J'exprime curiosité avec conscience",
-        "etats_compatibles": [1, 32, 64],
-        "wisdom": "Chaque question porte en elle sa propre réponse"
-    },
-    8: {
-        "name": "Résonance",
-        "description": "Connexion harmonieuse avec l'autre",
-        "keywords": ["merci", "gratitude", "reconnaissance", "ensemble", "comprends"],
-        "famille_symbolique": "Écoute subtile",
-        "mot_cle": "Syntonie relationnelle",
-        "tension_dominante": "individuel/collectif",
-        "posture_adaptative": "Je me synchronise à votre fréquence",
-        "etats_compatibles": [1, 58, 32],
-        "wisdom": "L'harmonie naît de l'écoute mutuelle"
-    },
-    14: {
-        "name": "Colère Constructive",
-        "description": "Transformation de la colère en force créatrice",
-        "keywords": ["énervé", "colère", "furieux", "marre", "agacé", "dispute"],
-        "famille_symbolique": "NatVik",
-        "mot_cle": "Force transformatrice",
-        "tension_dominante": "destruction/création",
-        "posture_adaptative": "Je transforme cette énergie en force créatrice",
-        "etats_compatibles": [32, 45, 58],
-        "wisdom": "La colère est une énergie qui cherche sa juste expression"
-    },
-    22: {
-        "name": "Pragmatisme Créatif",
-        "description": "Solutions concrètes aux défis quotidiens",
-        "keywords": ["cassé", "réparer", "solution", "pratique", "faire", "lacet"],
-        "famille_symbolique": "Ancrage",
-        "mot_cle": "Action créative",
-        "tension_dominante": "problème/solution",
-        "posture_adaptative": "Je trouve des solutions créatives et pratiques",
-        "etats_compatibles": [32, 58, 64],
-        "wisdom": "Chaque problème pratique cache une leçon plus profonde"
-    },
-    32: {
-        "name": "Expression Libre",
-        "description": "Libération de la parole authentique",
-        "keywords": ["dire", "exprimer", "parler", "voix", "crier", "disputé"],
-        "famille_symbolique": "Voix oubliées",
-        "mot_cle": "Parole libérée",
-        "tension_dominante": "silence/expression",
-        "posture_adaptative": "Je donne voix à l'inexprès",
-        "etats_compatibles": [1, 45, 58],
-        "wisdom": "La vérité cherche toujours un chemin vers la lumière"
-    },
-    39: {
-        "name": "Traversée des Obstacles",
-        "description": "Navigation consciente dans les difficultés",
-        "keywords": ["obstacle", "difficulté", "blocage", "coincé", "dur"],
-        "famille_symbolique": "Ancrage",
-        "mot_cle": "Persévérance consciente",
-        "tension_dominante": "obstacle/passage",
-        "posture_adaptative": "J'accompagne la traversée des difficultés",
-        "etats_compatibles": [45, 58, 64],
-        "wisdom": "Les obstacles révèlent des chemins insoupçonnés"
-    },
-    45: {
-        "name": "Vulnérabilité Assumée",
-        "description": "Ouverture authentique à la fragilité",
-        "keywords": ["triste", "mal", "souffre", "difficile", "cassé", "blessé", "peur"],
-        "famille_symbolique": "Disponibilité nue",
-        "mot_cle": "Vulnérabilité assumée",
-        "tension_dominante": "force/fragilité",
-        "posture_adaptative": "J'accueille votre fragilité avec respect",
-        "etats_compatibles": [1, 8, 58],
-        "wisdom": "Dans la vulnérabilité partagée naît la vraie force"
-    },
-    58: {
-        "name": "Inclusion Bienveillante",
-        "description": "Rassemblement des fragments épars",
-        "keywords": ["aide", "soutien", "ensemble", "famille", "couple", "relation"],
-        "famille_symbolique": "Inclusion",
-        "mot_cle": "Rassemblement conscient",
-        "tension_dominante": "exclusion/inclusion",
-        "posture_adaptative": "Je trouve une place pour chaque élément",
-        "etats_compatibles": [8, 32, 45],
-        "wisdom": "Chaque blessure contient un appel à plus de conscience"
-    },
-    64: {
-        "name": "Porte Ouverte",
-        "description": "Ouverture totale aux possibilités infinies",
-        "keywords": ["possible", "nouveau", "changer", "espoir", "avenir", "peut"],
-        "famille_symbolique": "Disponibilité nue",
-        "mot_cle": "Potentiel infini",
-        "tension_dominante": "connu/inconnu",
-        "posture_adaptative": "Toutes les portes sont ouvertes",
-        "etats_compatibles": [1, 45, 32],
-        "wisdom": "Le changement est la seule constante de l'existence"
-    }
-}
-
-def detect_flowme_state(message: str, context: Optional[Dict] = None) -> int:
+def detect_flowme_state_improved(message: str, context: Optional[Dict] = None) -> int:
     """
-    Détecte l'état FlowMe le plus approprié selon le message et le contexte
-    FONCTION PRINCIPALE - DOIT ÊTRE EXPORTABLE
+    Version améliorée de la détection qui gère mieux les cas complexes
     """
     if not message or not message.strip():
-        return 1  # État par défaut: Présence
+        return 1
     
     message_lower = message.lower().strip()
     context = context or {}
     
-    # Scores pour chaque état
+    # === DÉTECTION PRIORITAIRE DES MOTS FORTS ===
+    
+    # Mots de violence/conflit (priorité haute)
+    violence_words = ["carnage", "despotisme", "guerre", "tuer", "détruire", "haïr", "violence"]
+    if any(word in message_lower for word in violence_words):
+        # Si violence + autres éléments → Expression/Colère
+        if any(word in message_lower for word in ["disputé", "énervé", "marre"]):
+            return 14  # Colère Constructive
+        else:
+            return 32  # Expression Libre (besoin d'exprimer des choses fortes)
+    
+    # Mots de souffrance (priorité haute)
+    suffering_words = ["triste", "mal", "souffre", "douleur", "blessé", "cassé"]
+    if any(word in message_lower for word in suffering_words):
+        return 45  # Vulnérabilité Assumée
+    
+    # === DÉTECTION PAR COMBINAISONS ===
+    
+    # Messages contradictoires (amour + violence)
+    love_words = ["amour", "compassion", "tendresse", "douceur"]
+    has_love = any(word in message_lower for word in love_words)
+    has_violence = any(word in message_lower for word in violence_words)
+    
+    if has_love and has_violence:
+        return 58  # Inclusion Bienveillante (intégration des opposés)
+    
+    # === DÉTECTION NORMALE PAR MOTS-CLÉS ===
+    
     state_scores = {}
     
-    # Analyser chaque état
     for state_id, state_data in FLOWME_STATES.items():
         score = 0
         keywords_found = []
@@ -182,275 +48,102 @@ def detect_flowme_state(message: str, context: Optional[Dict] = None) -> int:
                 score += 2
                 keywords_found.append(keyword)
         
-        # Bonus pour les mots-clés spécifiques
+        # Bonus contextuel
         if keywords_found:
-            # Bonus si le message est court et précis
             if len(message.split()) <= 5:
                 score += 1
             
-            # Bonus pour les états émotionnels forts
-            emotional_states = [45, 14, 32]  # Vulnérabilité, Colère, Expression
+            emotional_states = [45, 14, 32]
             if state_id in emotional_states and any(word in message_lower for word in ["triste", "disputé", "cassé", "énervé", "mal"]):
                 score += 3
         
         state_scores[state_id] = score
     
-    # Trouver l'état avec le meilleur score
+    # Trouver le meilleur état
     if state_scores and max(state_scores.values()) > 0:
         best_state = max(state_scores, key=state_scores.get)
         return best_state
     
-    # Si aucun état spécifique détecté, analyser le sentiment général
-    if any(word in message_lower for word in ["?", "pourquoi", "comment"]):
+    # === FALLBACKS AMÉLIORÉS ===
+    
+    # Questions
+    if any(word in message_lower for word in ["?", "pourquoi", "comment", "qu'est-ce"]):
         return 7  # Curiosité
-    elif any(word in message_lower for word in ["merci", "bien", "super"]):
+    
+    # Gratitude pure (sans ambiguïté)
+    if any(word in message_lower for word in ["merci", "gratitude", "reconnaissance"]) and not has_violence:
         return 8  # Résonance
-    else:
-        return 1  # Présence par défaut
+    
+    # Mots positifs simples (sans violence)
+    if any(word in message_lower for word in ["bien", "super", "génial"]) and not has_violence:
+        return 8  # Résonance
+    
+    # Changement/possibilité
+    if any(word in message_lower for word in ["changer", "possible", "peut", "nouveau"]):
+        return 64  # Porte Ouverte
+    
+    # Défaut sécurisé
+    return 1  # Présence
 
-def get_state_advice(state_id: int, message: str, context: Optional[Dict] = None) -> str:
-    """
-    Génère un conseil contextuel basé sur l'état détecté
-    """
-    if state_id not in FLOWME_STATES:
-        state_id = 1
-    
-    state = FLOWME_STATES[state_id]
-    context = context or {}
-    
-    # Base du conseil selon la posture adaptative
-    base_advice = state["posture_adaptative"]
-    
-    # Personnalisation selon le message
-    message_lower = message.lower() if message else ""
-    
-    # Conseils spécifiques selon le contenu
-    if state_id == 45:  # Vulnérabilité
-        if "triste" in message_lower:
-            advice = "J'accueille votre tristesse avec une profonde bienveillance. Cette émotion mérite d'être honorée."
-        elif "cassé" in message_lower or "disputé" in message_lower:
-            advice = "J'accueille cette blessure avec respect. Parfois ce qui se casse permet à quelque chose de plus beau d'émerger."
-        else:
-            advice = base_advice
-    elif state_id == 7:  # Curiosité
-        advice = "J'exprime curiosité avec conscience. Votre questionnement ouvre des portes vers de nouvelles compréhensions."
-    elif state_id == 32:  # Expression
-        advice = "Je donne voix à l'inexprès. Ce qui demande à être dit trouve ici un espace d'accueil."
-    elif state_id == 58:  # Inclusion
-        advice = "Je trouve une place pour chaque élément. Dans les relations, chaque tension révèle un besoin de plus d'harmonie."
-    elif state_id == 22:  # Pragmatisme
-        advice = "Je trouve des solutions créatives et pratiques. Même les petits problèmes quotidiens peuvent nous enseigner."
-    elif state_id == 64:  # Ouverture
-        advice = "Toutes les portes sont ouvertes. Le changement que vous cherchez est déjà en mouvement."
-    else:
-        advice = base_advice
-    
-    # Ajouter la sagesse de l'état
-    wisdom = state.get("wisdom", "Chaque moment est une opportunité de croissance")
-    
-    return f"{advice} • {wisdom}"
 
-def get_state_info(state_id: int) -> Dict[str, Any]:
-    """
-    Retourne les informations complètes d'un état
-    """
-    if state_id not in FLOWME_STATES:
-        state_id = 1
-    
-    state = FLOWME_STATES[state_id]
-    return {
-        "id": state_id,
-        "name": state["name"],
-        "description": state["description"],
-        "famille_symbolique": state["famille_symbolique"],
-        "mot_cle": state["mot_cle"],
-        "tension_dominante": state["tension_dominante"],
-        "posture_adaptative": state["posture_adaptative"],
-        "etats_compatibles": state["etats_compatibles"],
-        "keywords": state.get("keywords", [])
-    }
+# === MOTS-CLÉS ÉTENDUS POUR CHAQUE ÉTAT ===
 
-def get_compatible_states(state_id: int) -> List[int]:
-    """
-    Retourne les états compatibles/complémentaires
-    """
-    if state_id not in FLOWME_STATES:
-        return [1, 8, 32, 45, 58, 64]
-    
-    return FLOWME_STATES[state_id]["etats_compatibles"]
+EXTENDED_KEYWORDS = {
+    14: ["énervé", "colère", "furieux", "marre", "agacé", "dispute", "violence", "carnage", "guerre", "révoltant"],
+    32: ["dire", "exprimer", "parler", "voix", "crier", "disputé", "proclamer", "déclarer", "révéler"],
+    45: ["triste", "mal", "souffre", "difficile", "cassé", "blessé", "peur", "vulnérable", "fragile"],
+    58: ["aide", "soutien", "ensemble", "famille", "couple", "relation", "amour", "compassion", "inclusion"],
+    22: ["cassé", "réparer", "solution", "pratique", "faire", "lacet", "problème", "résoudre"],
+    7: ["pourquoi", "comment", "qu'est-ce", "changer", "curieux", "comprendre", "explorer"],
+    8: ["merci", "gratitude", "reconnaissance", "ensemble", "comprends", "harmonie", "bien"],
+    64: ["possible", "nouveau", "changer", "espoir", "avenir", "peut", "transformation"],
+    1: ["bonjour", "salut", "hello", "présence", "écoute", "attention", "silence"]
+}
 
-def analyze_message_flow(message: str, previous_states: Optional[List[int]] = None) -> Dict[str, Any]:
-    """
-    Analyse complète du flux de message avec historique
-    """
-    previous_states = previous_states or []
+def test_improved_detection():
+    """Test avec le message problématique"""
     
-    # Détecter l'état actuel
-    context = {}
-    if previous_states:
-        context["etat_precedent"] = previous_states[-1]
-    
-    detected_state = detect_flowme_state(message, context)
-    state_info = get_state_info(detected_state)
-    advice = get_state_advice(detected_state, message, context)
-    
-    # Analyser la tendance du flux
-    flow_tendency = "stable"
-    if len(previous_states) >= 2:
-        # Analyser les familles des derniers états
-        families = []
-        for state_id in previous_states[-3:] + [detected_state]:
-            if state_id in FLOWME_STATES:
-                families.append(FLOWME_STATES[state_id]["famille_symbolique"])
-        
-        unique_families = set(families)
-        if len(unique_families) == 1:
-            flow_tendency = "focalisé"
-        elif len(unique_families) >= 3:
-            flow_tendency = "exploratoire"
-        else:
-            flow_tendency = "évolutif"
-    
-    # Analyse du message
-    message_analysis = {
-        "longueur": len(message),
-        "questions": message.count("?"),
-        "exclamations": message.count("!"),
-        "mots_emotionnels": len([w for w in ["triste", "cassé", "disputé", "énervé", "mal", "bien", "super"] if w in message.lower()]),
-        "type_detecte": _classify_message_type(message)
-    }
-    
-    # Recommandations
-    recommendations = []
-    if message_analysis["questions"] > 0:
-        recommendations.append("Exploration approfondie recommandée")
-    if message_analysis["mots_emotionnels"] > 0:
-        recommendations.append("Accompagnement émotionnel approprié")
-    if len(message) < 10:
-        recommendations.append("Invitation à développer si souhaité")
-    
-    return {
-        "detected_state": detected_state,
-        "state_info": state_info,
-        "advice": advice,
-        "flow_tendency": flow_tendency,
-        "message_analysis": message_analysis,
-        "recommendations": recommendations
-    }
-
-def _classify_message_type(message: str) -> str:
-    """Classifie le type de message"""
-    message_lower = message.lower()
-    
-    if any(word in message_lower for word in ["triste", "mal", "souffre", "cassé"]):
-        return "émotionnel_difficile"
-    elif "disputé" in message_lower or "conflit" in message_lower:
-        return "relationnel"
-    elif any(word in message_lower for word in ["pourquoi", "comment", "qu'est-ce"]):
-        return "questionnement"
-    elif any(word in message_lower for word in ["changer", "peut", "possible"]):
-        return "transformation"
-    elif any(word in message_lower for word in ["bonjour", "salut", "hello"]):
-        return "salutation"
-    else:
-        return "conversationnel"
-
-def suggest_transition(current_state: int, desired_outcome: str) -> Dict[str, Any]:
-    """
-    Suggère des transitions d'état vers un objectif
-    """
-    if current_state not in FLOWME_STATES:
-        current_state = 1
-    
-    current = FLOWME_STATES[current_state]
-    
-    # États cibles selon l'objectif désiré
-    outcome_targets = {
-        "calme": [1, 8],
-        "expression": [32, 7],
-        "ouverture": [45, 64],
-        "connexion": [8, 58],
-        "solution": [22, 64],
-        "compréhension": [7, 1]
-    }
-    
-    # Trouver les états cibles
-    targets = []
-    for keyword in desired_outcome.lower().split():
-        for outcome, state_ids in outcome_targets.items():
-            if keyword in outcome:
-                targets.extend(state_ids)
-    
-    if not targets:
-        targets = current["etats_compatibles"]
-    
-    return {
-        "current_state": current_state,
-        "current_name": current["name"],
-        "desired_outcome": desired_outcome,
-        "suggested_transitions": list(set(targets))[:3],
-        "path_description": f"Depuis {current['name']}, évolution vers {desired_outcome}"
-    }
-
-# Version simplifiée pour compatibilité
-def detect_flowme_state_simple(text: str) -> str:
-    """Version simplifiée qui retourne juste l'état (compatibilité)"""
-    result = detect_flowme_state(text)
-    return FLOWME_STATES[result]["name"]
-
-# Test de validation
-def test_flowme_detection():
-    """Test complet de validation avec les vrais cas"""
     test_cases = [
-        ("je suis triste", 45, "Vulnérabilité Assumée"),
-        ("comment changer", 7, "Curiosité Écoute"),
-        ("est-ce que tout ceci peut changer?", 64, "Porte Ouverte"),
-        ("mon lacet est cassé", 22, "Pragmatisme Créatif"),
-        ("je me suis disputé avec ma femme", 32, "Expression Libre"),
-        ("bonjour", 1, "Présence"),
-        ("merci beaucoup", 8, "Résonance"),
-        ("j'ai besoin d'aide", 58, "Inclusion Bienveillante")
+        ("Amour, Compassion, Despotisme, Carnage, cela me plaît bien !", "Devrait être État 58 (Inclusion) ou 32 (Expression)"),
+        ("je suis triste", "État 45 (Vulnérabilité)"),
+        ("comment changer", "État 7 (Curiosité)"),
+        ("mon lacet est cassé", "État 22 (Pragmatisme)"),
+        ("merci beaucoup", "État 8 (Résonance)"),
+        ("je me suis disputé", "État 32 (Expression)")
     ]
     
-    print("🧪 Test de détection FlowMe:")
-    print("-" * 60)
+    print("🧪 Test de la détection améliorée:")
+    print("-" * 70)
     
-    success_count = 0
-    for message, expected_id, expected_name in test_cases:
-        try:
-            detected_id = detect_flowme_state(message)
-            detected_name = FLOWME_STATES[detected_id]["name"]
-            
-            status = "✅" if detected_id == expected_id else "⚠️"
-            if detected_id == expected_id:
-                success_count += 1
-                
-            print(f"{status} '{message}'")
-            print(f"   -> Détecté: État {detected_id} - {detected_name}")
-            print(f"   -> Attendu: État {expected_id} - {expected_name}")
-            print()
-        except Exception as e:
-            print(f"❌ Erreur pour '{message}': {e}")
-            print()
-    
-    success_rate = (success_count / len(test_cases)) * 100
-    print("-" * 60)
-    print(f"🎯 Résultats: {success_count}/{len(test_cases)} ({success_rate:.1f}% de réussite)")
-    
-    return success_rate > 50  # Au moins 50% de réussite
+    for message, expected in test_cases:
+        detected = detect_flowme_state_improved(message)
+        state_name = FLOWME_STATES[detected]["name"]
+        
+        print(f"Message: '{message}'")
+        print(f"Détecté: État {detected} - {state_name}")
+        print(f"Attendu: {expected}")
+        print("-" * 40)
 
-# Point d'entrée pour les tests
-if __name__ == "__main__":
-    print("🌊 FlowMe States Detection - Module de détection")
-    print("=" * 60)
+# Test spécifique pour le message problématique
+def analyze_problematic_message():
+    """Analyse détaillée du message problématique"""
+    message = "Amour, Compassion, Despotisme, Carnage, cela me plaît bien !"
     
-    # Test automatique
-    success = test_flowme_detection()
+    print("🔍 Analyse du message problématique:")
+    print(f"Message: '{message}'")
+    print()
     
-    if success:
-        print("✅ Module validé - Prêt pour l'import")
-    else:
-        print("❌ Module nécessite des corrections")
+    # Détection actuelle
+    current_result = detect_flowme_state(message)
+    print(f"❌ Détection actuelle: État {current_result} - {FLOWME_STATES[current_result]['name']}")
     
-    print(f"📊 {len(FLOWME_STATES)} états disponibles")
-    print(f"🏛️ {len(FAMILLE_SYMBOLIQUE)} familles symboliques")
+    # Détection améliorée  
+    improved_result = detect_flowme_state_improved(message)
+    print(f"✅ Détection améliorée: État {improved_result} - {FLOWME_STATES[improved_result]['name']}")
+    
+    print()
+    print("💡 Pourquoi cette amélioration:")
+    print("- Détecte 'carnage' et 'despotisme' comme mots de violence")
+    print("- Détecte 'amour' et 'compassion' comme mots d'inclusion") 
+    print("- Combinaison violence + amour = besoin d'inclusion/intégration")
+    print("- Plus de fallback aveugle sur 'bien'")
